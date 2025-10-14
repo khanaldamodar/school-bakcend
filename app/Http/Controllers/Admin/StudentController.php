@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 
 class StudentController extends Controller
 {
@@ -100,7 +101,7 @@ class StudentController extends Controller
                         'last_name' => $parentData['last_name'] ?? null,
                         'phone' => $parentData['phone'] ?? null,
                         'relation' => $parentData['relation'],
-                        'user_id'=>$parentUser->id
+                        'user_id' => $parentUser->id
                     ]
                 );
 
@@ -283,8 +284,8 @@ class StudentController extends Controller
 
         // Fetch the student linked to this user_id
         $student = Student::with(['class', 'parents'])
-                    ->where('user_id', $userId)
-                    ->first();
+            ->where('user_id', $userId)
+            ->first();
 
         if (!$student) {
             return response()->json([
@@ -299,5 +300,150 @@ class StudentController extends Controller
             'data' => $student
         ]);
     }
+
+
+
+    public function bulkUpload(Request $request)
+    {
+        $students = $request->input('students', []);
+
+        if (empty($students)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No student data provided.'
+            ], 400);
+        }
+
+        $successCount = 0;
+        $failed = [];
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($students as $index => $studentData) {
+
+                if (isset($studentData['parents']) && is_string($studentData['parents'])) {
+                    $decoded = json_decode($studentData['parents'], true);
+                    $studentData['parents'] = is_array($decoded) ? $decoded : [];
+                }
+                // ✅ Validate each student row
+                $validator = Validator::make($studentData, [
+                    'first_name' => 'required|string|max:255',
+                    'middle_name' => 'nullable|string|max:255',
+                    'last_name' => 'nullable|string|max:255',
+                    'email' => 'nullable|email|unique:students,email',
+                    'phone' => 'nullable|string|max:20',
+                    'class_id' => 'required|exists:classes,id',
+                    'roll_number' => 'nullable|string|max:50',
+
+                    // parents array validation
+                    'parents' => 'required|array|min:1',
+                    'parents.*.first_name' => 'required|string|max:255',
+                    'parents.*.last_name' => 'nullable|string|max:255',
+                    'parents.*.email' => 'required|email',
+                    'parents.*.phone' => 'nullable|string|max:20',
+                    'parents.*.relation' => 'required|in:father,mother,guardian',
+                ]);
+
+                if ($validator->fails()) {
+                    $failed[] = [
+                        'row' => $index + 1,
+                        'errors' => $validator->errors()->all(),
+                    ];
+                    continue; // skip this row
+                }
+
+                $validated = $validator->validated();
+
+                try {
+                    // Create student
+                    $student = Student::create([
+                        'first_name' => $validated['first_name'],
+                        'middle_name' => $validated['middle_name'] ?? null,
+                        'last_name' => $validated['last_name'] ?? null,
+                        'email' => $validated['email'] ?? null,
+                        'phone' => $validated['phone'] ?? null,
+                        'class_id' => $validated['class_id'],
+                        'roll_number' => $validated['roll_number'] ?? null,
+                    ]);
+
+                    // Create student user account
+                    $studentUser = User::firstOrCreate(
+                        ['email' => $validated['email']],
+                        [
+                            'name' => $validated['first_name'] . ' ' . ($validated['last_name'] ?? ''),
+                            'email' => $validated['email'],
+                            'phone' => $validated['phone'] ?? null,
+                            'password' => bcrypt($validated['phone']),
+                            'role' => 'student',
+                        ]
+                    );
+
+                    $student->user_id = $studentUser->id;
+                    $student->save();
+
+                    // Attach Parents
+                    foreach ($validated['parents'] as $parentData) {
+                        $parentUser = User::firstOrCreate(
+                            ['email' => $parentData['email']],
+                            [
+                                'name' => $parentData['first_name'] . ' ' . ($parentData['last_name'] ?? ''),
+                                'email' => $parentData['email'],
+                                'phone' => $parentData['phone'] ?? null,
+                                'password' => bcrypt($parentData['phone']),
+                                'role' => 'parent',
+                            ]
+                        );
+
+                        $parent = ParentModel::firstOrCreate(
+                            ['email' => $parentData['email']],
+                            [
+                                'first_name' => $parentData['first_name'],
+                                'last_name' => $parentData['last_name'] ?? null,
+                                'phone' => $parentData['phone'] ?? null,
+                                'relation' => $parentData['relation'],
+                                'user_id' => $parentUser->id,
+                            ]
+                        );
+
+                        $student->parents()->syncWithoutDetaching([$parent->id]);
+                    }
+
+                    $successCount++;
+                } catch (\Throwable $e) {
+                    $failed[] = [
+                        'row' => $index + 1,
+                        'errors' => [$e->getMessage()],
+                    ];
+                }
+            }
+
+            if ($successCount === 0) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => false,
+                    'message' => 'All student imports failed.',
+                    'errors' => $failed,
+                ], 422);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => "$successCount student(s) imported successfully.",
+                'failed_rows' => $failed,
+            ], 200);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong during bulk upload.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
 }
