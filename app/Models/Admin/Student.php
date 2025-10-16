@@ -19,7 +19,8 @@ class Student extends Model
         'enrollment_year',
         'is_transferred',
         'transferred_to',
-        'user_id'
+        'user_id',
+        'address'  
     ];
     public function class()
     {

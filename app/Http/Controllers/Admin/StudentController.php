@@ -16,16 +16,38 @@ class StudentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        $students = Student::with(['class', 'parents'])->get();
+public function index(Request $request)
+{
+    $query = Student::with(['class', 'parents']);
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Students fetched successfully',
-            'data' => $students
-        ]);
+    if ($request->has('class') && $request->class != '') {
+        $query->where('class_id', $request->class);
     }
+
+    if ($request->has('search') && $request->search != '') {
+        $query->where(function($q) use ($request) {
+            $q->where('first_name', 'like', '%' . $request->search . '%')
+              ->orWhere('last_name', 'like', '%' . $request->search . '%');
+        });
+    }
+
+    $students = $query->paginate($request->get('per_page', 10));
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Students fetched successfully',
+        'data' => $students->items(),
+        'meta' => [
+            'current_page' => $students->currentPage(),
+            'last_page' => $students->lastPage(),
+            'per_page' => $students->perPage(),
+            'total' => $students->total(),
+        ],
+    ]);
+}
+
+
+
 
     /**
      * Store a newly created resource in storage.
@@ -36,12 +58,16 @@ class StudentController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
+            'dob' => 'nullable|date',
+            'gender' => 'nullable|in:male,female,other',
             'email' => 'nullable|email|unique:students,email',
             'phone' => 'nullable|string|max:20',
+            'address' => 'string',
             'class_id' => 'required|exists:classes,id',
             'roll_number' => 'nullable|string|max:50',
-
-            // parents array validation
+            'enrollment_year' => 'nullable|digits:4',
+            'is_transferred' => 'nullable|boolean',
+            'transferred_to' => 'nullable|string|max:255',
             'parents' => 'required|array|min:1',
             'parents.*.first_name' => 'required|string|max:255',
             'parents.*.last_name' => 'nullable|string|max:255',
@@ -49,6 +75,7 @@ class StudentController extends Controller
             'parents.*.phone' => 'nullable|string|max:20',
             'parents.*.relation' => 'required|in:father,mother,guardian',
         ]);
+
 
         DB::beginTransaction();
 
@@ -58,11 +85,18 @@ class StudentController extends Controller
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'] ?? null,
                 'last_name' => $validated['last_name'] ?? null,
+                'dob' => $validated['dob'] ?? null,
+                'gender' => $validated['gender'] ?? null,
                 'email' => $validated['email'] ?? null,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
                 'roll_number' => $validated['roll_number'] ?? null,
+                'enrollment_year' => $validated['enrollment_year'] ?? null,
+                'is_transferred' => $validated['is_transferred'] ?? false,
+                'transferred_to' => $validated['transferred_to'] ?? null,
+                'address' => $validated['address'] ?? null,
             ]);
+
 
             // Create student user account
             $studentUser = User::firstOrCreate(

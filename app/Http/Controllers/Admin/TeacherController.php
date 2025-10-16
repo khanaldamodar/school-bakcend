@@ -159,58 +159,58 @@ class TeacherController extends Controller
         ]);
     }
 
-public function me(Request $request)
-{
-    $user = $request->user();
+    public function me(Request $request)
+    {
+        $user = $request->user();
 
-    $teacher = Teacher::with(['classTeacherOf', 'classSubjects'])->where('user_id', $user->id)->first();
+        $teacher = Teacher::with(['classTeacherOf', 'classSubjects'])->where('user_id', $user->id)->first();
 
-    if (!$teacher) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Teacher profile not found'
-        ], 404);
-    }
+        if (!$teacher) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Teacher profile not found'
+            ], 404);
+        }
 
-    // Group subjects by class_id
-    $classes = [];
-    
-    foreach ($teacher->classSubjects as $subject) {
-        $classId = $subject->pivot->class_id;
+        // Group subjects by class_id
+        $classes = [];
 
-        if (!isset($classes[$classId])) {
-            $cls = SchoolClass::find($classId); // fetch class info
-            $classes[$classId] = [
-                'id' => $cls->id,
-                'name' => $cls->name,
-                'is_class_teacher' => $teacher->class_teacher_of == $cls->id,
-                'subjects' => [],
+        foreach ($teacher->classSubjects as $subject) {
+            $classId = $subject->pivot->class_id;
+
+            if (!isset($classes[$classId])) {
+                $cls = SchoolClass::find($classId); // fetch class info
+                $classes[$classId] = [
+                    'id' => $cls->id,
+                    'name' => $cls->name,
+                    'is_class_teacher' => $teacher->class_teacher_of == $cls->id,
+                    'subjects' => [],
+                ];
+            }
+
+            $classes[$classId]['subjects'][] = [
+                'id' => $subject->id,
+                'name' => $subject->name,
             ];
         }
 
-        $classes[$classId]['subjects'][] = [
-            'id' => $subject->id,
-            'name' => $subject->name,
-        ];
+        // Convert to indexed array
+        $classes = array_values($classes);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Teacher profile fetched successfully',
+            'data' => [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+                'email' => $teacher->email,
+                'phone' => $teacher->phone,
+                'class_teacher_of' => $teacher->classTeacherOf->id ?? null,
+                'class_name' => $teacher->classTeacherOf->name ?? null,
+                'classes' => $classes,
+            ]
+        ]);
     }
-
-    // Convert to indexed array
-    $classes = array_values($classes);
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Teacher profile fetched successfully',
-        'data' => [
-            'id' => $teacher->id,
-            'name' => $teacher->name,
-            'email' => $teacher->email,
-            'phone' => $teacher->phone,
-            'class_teacher_of' => $teacher->classTeacherOf->id ?? null,
-            'class_name' => $teacher->classTeacherOf->name ?? null,
-            'classes' => $classes,
-        ]
-    ]);
-}
 
 
 

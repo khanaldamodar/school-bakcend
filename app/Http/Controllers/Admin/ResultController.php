@@ -271,7 +271,7 @@ class ResultController extends Controller
     }
 
 
-    public function resultsByClassAndStudent(Request $request, $classId)
+    public function resultsByClassAndStudent(Request $request, $domain, $classId)
     {
         $name = $request->query('name'); // ?name=John
 
@@ -369,10 +369,11 @@ class ResultController extends Controller
     }
 
 
+
     public function createResultByTeacher(Request $request)
     {
         $user = $request->user();
-        // dd($user);
+
 
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
@@ -385,7 +386,7 @@ class ResultController extends Controller
         ]);
 
         $teacher = Teacher::with('subjects')->where('user_id', $user->id)->firstOrFail();
-        
+
         $savedResults = [];
 
         foreach ($validated['results'] as $resultData) {
@@ -433,78 +434,233 @@ class ResultController extends Controller
         ], 201);
     }
 
-
     // To view the result by teacher
+    public function resultsByTeacher(Request $request, $domain, $teacherId)
+    {
+        $auth = $request->user();
 
-
-
-public function resultsByTeacher(Request $request, $domain, $teacherId)
-{
-    $auth = $request->user();
-
-    // load teacher record by teachers.id
-    $teacher = Teacher::find($teacherId);
-    if (! $teacher) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Teacher not found'
-        ], 404);
-    }
-
-    // If caller is a teacher, allow only their own teacher record
-    if ($auth->role === 'teacher') {
-        $authTeacher = Teacher::where('user_id', $auth->id)->first();
-        if (! $authTeacher || $authTeacher->id !== (int) $teacherId) {
+        // load teacher record by teachers.id
+        $teacher = Teacher::find($teacherId);
+        if (!$teacher) {
             return response()->json([
                 'status' => false,
-                'message' => 'Forbidden'
-            ], 403);
+                'message' => 'Teacher not found'
+            ], 404);
         }
+
+        // If caller is a teacher, allow only their own teacher record
+        if ($auth->role === 'teacher') {
+            $authTeacher = Teacher::where('user_id', $auth->id)->first();
+            if (!$authTeacher || $authTeacher->id !== (int) $teacherId) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Forbidden'
+                ], 403);
+            }
+        }
+
+        // 1) Get all class-subject assignments for this teacher from pivot
+        $assignments = DB::table('class_subject_teacher')
+            ->where('teacher_id', $teacher->id)
+            ->get(['class_id', 'subject_id']);
+
+        // group subject ids by class id
+        $grouped = $assignments->groupBy('class_id')->map(function ($rows) {
+            return $rows->pluck('subject_id')->unique()->values()->all();
+        });
+
+        // Build query:
+        $query = Result::with(['student', 'subject']);
+
+        $query->where(function ($q) use ($teacher, $grouped) {
+            // include results created by this teacher
+            $q->where('teacher_id', $teacher->id);
+
+            // include results for the class teacher class (all subjects)
+            if ($teacher->class_teacher_of) {
+                $q->orWhere('class_id', $teacher->class_teacher_of);
+            }
+
+            // include results for each (class, [subjectIds]) pair teacher teaches
+            foreach ($grouped as $classId => $subjectIds) {
+                // if subjectIds empty skip
+                if (empty($subjectIds))
+                    continue;
+
+                $q->orWhere(function ($subq) use ($classId, $subjectIds) {
+                    $subq->where('class_id', $classId)
+                        ->whereIn('subject_id', $subjectIds);
+                });
+            }
+        });
+
+        // optionally order
+        $results = $query->orderBy('class_id')->orderBy('student_id')->get();
+
+        return response()->json([
+            'status' => true,
+            'data' => $results,
+        ]);
     }
 
-    // 1) Get all class-subject assignments for this teacher from pivot
-    $assignments = DB::table('class_subject_teacher')
-        ->where('teacher_id', $teacher->id)
-        ->get(['class_id', 'subject_id']);
 
-    // group subject ids by class id
-    $grouped = $assignments->groupBy('class_id')->map(function($rows) {
-        return $rows->pluck('subject_id')->unique()->values()->all();
-    });
 
-    // Build query:
-    $query = Result::with(['student', 'subject']);
 
-    $query->where(function($q) use ($teacher, $grouped) {
-        // include results created by this teacher
-        $q->where('teacher_id', $teacher->id);
+    // Get the result by the class For the admin
+    public function classLedger($domain, $classId)
+    {
+        // Fetch all students in the class
+        $students = Student::where('class_id', $classId)
+            ->with(['results.subject']) // eager load results and subjects
+            ->get();
 
-        // include results for the class teacher class (all subjects)
-        if ($teacher->class_teacher_of) {
-            $q->orWhere('class_id', $teacher->class_teacher_of);
+        $ledger = [];
+
+        foreach ($students as $student) {
+            $totalMarks = 0;
+            $maxMarks = 0;
+            $subjectsData = [];
+
+            foreach ($student->results as $result) {
+                $theoryMarks = $result->marks_theory ?? 0;
+                $practicalMarks = $result->marks_practical ?? 0;
+                $subjectTotal = $theoryMarks + $practicalMarks;
+                $subjectMax = ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0);
+
+                $totalMarks += $subjectTotal;
+                $maxMarks += $subjectMax;
+
+                $subjectsData[] = [
+                    'subject_name' => $result->subject->name ?? 'N/A',
+                    'marks_theory' => $theoryMarks,
+                    'marks_practical' => $practicalMarks,
+                    'total_marks' => $subjectTotal,
+                    'max_marks' => $subjectMax,
+                ];
+            }
+
+            $percentage = $maxMarks > 0 ? round(($totalMarks / $maxMarks) * 100, 2) : 0;
+
+            $ledger[] = [
+                'student_id' => $student->id,
+                'student_name' => $student->first_name . ' ' . $student->last_name,
+                'total_marks' => $totalMarks,
+                'max_marks' => $maxMarks,
+                'percentage' => $percentage,
+                'subjects' => $subjectsData,
+            ];
         }
 
-        // include results for each (class, [subjectIds]) pair teacher teaches
-        foreach ($grouped as $classId => $subjectIds) {
-            // if subjectIds empty skip
-            if (empty($subjectIds)) continue;
+        // Sort by total marks descending to calculate rank
+        usort($ledger, function ($a, $b) {
+            return $b['total_marks'] <=> $a['total_marks'];
+        });
 
-            $q->orWhere(function($subq) use ($classId, $subjectIds) {
-                $subq->where('class_id', $classId)
-                     ->whereIn('subject_id', $subjectIds);
+        // Assign rank
+        foreach ($ledger as $index => &$student) {
+            $student['rank'] = $index + 1;
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Ledger fetched successfully for class ' . $classId,
+            'data' => $ledger
+        ], 200);
+    }
+
+
+    // Get the Individual Student Result by Student Id for Admin
+    /**
+     * Get results of a student by student ID
+     */
+    public function getStudentResultsById(Request $request, $domain, $studentId)
+    {
+        $user = $request->user();
+
+        // Fetch the student
+        $student = Student::with('class:id,name')->findOrFail($studentId);
+
+
+        // Base query for results with relationships
+        $query = Result::with([
+            'subject:id,name,theory_marks,practical_marks',
+            'class:id,name,class_code',
+            'teacher:id,first_name,last_name'
+        ])->where('student_id', $student->id);
+
+
+        // Role-based access control
+        if ($user->role === 'teacher') {
+            $teacher = $user->teacher;
+            $query->where(function ($q) use ($teacher) {
+                $q->where('teacher_id', $teacher->id)
+                    ->orWhere('class_id', $teacher->class_teacher_of_id);
             });
+        } elseif ($user->role === 'student') {
+            if ($user->student->id != $studentId) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Not allowed to view this student\'s results'
+                ], 403);
+            }
+        } elseif ($user->role === 'parent') {
+            $childIds = $user->parent->students()->pluck('id');
+            if (!$childIds->contains($studentId)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Not allowed to view this student\'s results'
+                ], 403);
+            }
         }
-    });
+        // Admin can view all results, no restrictions
+        elseif ($user->role === 'admin') {
+            // no filtering needed
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'Role not authorized'
+            ], 403);
+        }
 
-    // optionally order
-    $results = $query->orderBy('class_id')->orderBy('student_id')->get();
+        
 
-    return response()->json([
-        'status' => true,
-        'data' => $results,
-    ]);
-}
 
+        // dd($query);
+        $results = Result::with(['subject', 'class', 'teacher'])
+            ->where('student_id', $student->id)
+            ->get()
+            ->map(function ($result) {
+                return [
+                    'subject_name' => $result->subject->name ?? 'N/A',
+                    'marks_theory' => $result->marks_theory,
+                    'max_theory' => $result->subject->theory_marks ?? 0,
+                    'marks_practical' => $result->marks_practical,
+                    'max_practical' => $result->subject->practical_marks ?? 0,
+                    'gpa' => $result->gpa,
+                    'exam_type' => $result->exam_type,
+                    'teacher_name' => $result->teacher->name ?? 'N/A',
+                    'class_name' => $result->class->name ?? 'N/A',
+                ];
+            });
+
+
+
+
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Results fetched successfully for student ' . $student->first_name . ' ' . $student->last_name,
+            'data' => [
+                'student' => [
+                    'id' => $student->id,
+                    'name' => $student->first_name . ' ' . $student->last_name,
+                    'class' => $student->class->name ?? 'N/A',
+                    'roll_number' => $student->roll_number,
+                ],
+                'results' => $results,
+            ]
+        ], 200);
+    }
 
 
 

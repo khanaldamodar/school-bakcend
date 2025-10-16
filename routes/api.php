@@ -70,6 +70,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     //? To create te Result 
     Route::apiResource('tenants/{domain}/students/results', ResultController::class)->except('store');
 
+    // ? Get the Individual Student Result
+    Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'getStudentResultsById']);
+
     //? To filter the results of students based in class and the studentId and classId
     Route::get('tenants/{domain}/students/results/class/{classId}', [ResultController::class, 'resultByClass']);
     // Route::get('tenants/{domain}/students/getresults/{studentId}', [ResultController::class, 'studentResult']);
@@ -113,6 +116,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     //? To view the result for the teachers 
     Route::get('tenants/{domain}/teachers/{teacherId}/results', [ResultController::class, 'resultsByTeacher']);
 
+    Route::get('tenants/{domain}/results/{classId}', [ResultController::class, 'classLedger']);
+
+
+
 
     // ? Bulk Upload
     Route::post('tenants/{domain}/students/bulk-upload', [StudentController::class, 'bulkUpload']);
@@ -123,6 +130,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 // ?For the students and parents
 Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'])->group(function () {
     Route::post('tenants/{domain}/students/profile', [StudentController::class,'profile']);
+    Route::get('tenants/{domain}/students/{id}', [StudentController::class,'show']);
+
+
     Route::get('tenants/{domain}/students/result', [ResultController::class, 'studentResult']);
 
 
