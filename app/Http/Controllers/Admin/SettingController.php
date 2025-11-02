@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class SettingController extends Controller
 {
@@ -20,6 +21,46 @@ class SettingController extends Controller
         }
 
         return response()->json($settings, 200);
+    }
+
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => "required|string",
+            "about" => 'string|required',
+            "logo" => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            "favicon" => 'image|mimes:jpeg,png,jpeg,gif,svg|max:2048',
+            "address" => 'string|required',
+            "phone" => 'string|required',
+            "email" => 'string|email|required',
+            "facebook" => 'string|url|nullable',
+            "twitter" => 'string|url|nullable',
+            "start_time" => 'date_format:H:i:s|required',
+            "end_time" => 'date_format:H:i:s|required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+        $data = $validator->validated();
+
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('logos', 'public');
+            $data['logo'] = $logoPath;
+        }
+        if ($request->hasFile('favicon')) {
+            $faviconPath = $request->file('favicon')->store('favicons', 'public');
+            $data['favicon'] = $faviconPath;
+        }
+        $settings = Setting::create($data);
+
+        return response()->json([
+            'status' => true,
+            'message' => "Setting Created Successfully",
+            'data' => $settings
+        ], 200);
+
     }
 
     // ?To update the settings of the school
@@ -51,7 +92,11 @@ class SettingController extends Controller
             $validatedData['favicon'] = $faviconPath;
         }
         $settings->update($validatedData);
-        return response()->json($settings, 200);
+        return response()->json([
+            'status' => true,
+            'message' => 'Settings updated successfully',
+            'data' => $settings
+        ], 200);
     }
 
 }

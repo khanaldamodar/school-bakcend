@@ -61,45 +61,57 @@ class ResultController extends Controller
      */
     public function store(Request $request)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
+            // dd($user->id);
+            $teacherId = Teacher::where('user_id', $user->id)->value('id');
+            // dd($teacherId);
 
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'class_id' => 'required|exists:classes,id',
-            'subject_id' => 'required|exists:subjects,id',
-            'marks_theory' => 'required|integer|min:0',
-            'marks_practical' => 'required|integer|min:0',
-            'exam_type' => 'nullable|string|max:255',
-        ]);
+            $validated = $request->validate([
+                'student_id' => 'required|exists:students,id',
+                'class_id' => 'required|exists:classes,id',
+                'subject_id' => 'required|exists:subjects,id',
+                'marks_theory' => 'required|integer|min:0',
+                'marks_practical' => 'required|integer|min:0',
+                'exam_type' => 'nullable|string|max:255',
+            ]);
 
-        // Fetch max marks from subjects table
-        $subject = \App\Models\Admin\Subject::findOrFail($validated['subject_id']);
-        $max_theory = $subject->theory_marks ?? 0;
-        $max_practical = $subject->practical_marks ?? 0;
+            $subject = \App\Models\Admin\Subject::findOrFail($validated['subject_id']);
+            $max_theory = $subject->theory_marks ?? 0;
+            $max_practical = $subject->practical_marks ?? 0;
 
-        // Calculate GPA (scale of 4)
-        $marks_obtained = $validated['marks_theory'] + $validated['marks_practical'];
-        $max_marks = $max_theory + $max_practical;
-        $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
+            $marks_obtained = $validated['marks_theory'] + $validated['marks_practical'];
+            $max_marks = $max_theory + $max_practical;
+            $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
 
-        // ✅ No role check here, just save result
-        $result = Result::create([
-            'student_id' => $validated['student_id'],
-            'class_id' => $validated['class_id'],
-            'subject_id' => $validated['subject_id'],
-            'teacher_id' => $user->id, // store whoever added it (admin/teacher)
-            'marks_theory' => $validated['marks_theory'],
-            'marks_practical' => $validated['marks_practical'],
-            'gpa' => $gpa,
-            'exam_type' => $validated['exam_type'] ?? null,
-        ]);
+            $result = \App\Models\Admin\Result::create([
+                'student_id' => $validated['student_id'],
+                'class_id' => $validated['class_id'],
+                'subject_id' => $validated['subject_id'],
+                'teacher_id' => $user ? $user->id : null,
+                'marks_theory' => $validated['marks_theory'],
+                'marks_practical' => $validated['marks_practical'],
+                'gpa' => $gpa,
+                'exam_type' => $validated['exam_type'] ?? null,
+            ]);
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Result added successfully with GPA',
-            'data' => $result
-        ], 201);
+            return response()->json([
+                'status' => true,
+                'message' => 'Result added successfully',
+                'data' => $result
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Internal Server Error',
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
+        }
     }
+
 
 
 
@@ -386,7 +398,7 @@ class ResultController extends Controller
         ]);
 
         $teacher = Teacher::with('subjects')->where('user_id', $user->id)->firstOrFail();
-
+        // dd($teacher->subjects);
         $savedResults = [];
 
         foreach ($validated['results'] as $resultData) {
@@ -516,6 +528,9 @@ class ResultController extends Controller
 
         $ledger = [];
 
+        // dd($students->first()->results);
+
+
         foreach ($students as $student) {
             $totalMarks = 0;
             $maxMarks = 0;
@@ -622,7 +637,7 @@ class ResultController extends Controller
             ], 403);
         }
 
-        
+
 
 
         // dd($query);
@@ -661,6 +676,59 @@ class ResultController extends Controller
             ]
         ], 200);
     }
+
+
+
+
+    public function bulkStore(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:school_classes,id',
+            'exam_type' => 'required|string|max:255',
+            'results' => 'required|array|min:1',
+            'results.*.student_id' => 'required|exists:students,id',
+            'results.*.subject_id' => 'required|exists:subjects,id',
+            'results.*.marks_theory' => 'required|integer|min:0',
+            'results.*.marks_practical' => 'required|integer|min:0',
+        ]);
+
+        $resultsData = [];
+
+        foreach ($validated['results'] as $data) {
+            $subject = \App\Models\Admin\Subject::find($data['subject_id']);
+
+            $max_theory = $subject->theory_marks ?? 0;
+            $max_practical = $subject->practical_marks ?? 0;
+            $marks_obtained = $data['marks_theory'] + $data['marks_practical'];
+            $max_marks = $max_theory + $max_practical;
+            $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
+
+            $resultsData[] = [
+                'student_id' => $data['student_id'],
+                'class_id' => $validated['class_id'],
+                'subject_id' => $data['subject_id'],
+                'teacher_id' => $user->id ?? null,
+                // 'teacher_id' => 25 ?? null,
+                'marks_theory' => $data['marks_theory'],
+                'marks_practical' => $data['marks_practical'],
+                'gpa' => $gpa,
+                'exam_type' => $validated['exam_type'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        Result::insert($resultsData);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Bulk results uploaded successfully!',
+            'count' => count($resultsData),
+        ], 201);
+    }
+
 
 
 

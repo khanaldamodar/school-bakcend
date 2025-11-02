@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Government\SchoolController;
 use App\Http\Controllers\SuperAdmin\CentralController;
 use App\Http\Controllers\SuperAdmin\TenantController;
 use Illuminate\Support\Facades\Route;
@@ -52,14 +53,14 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     
 
     //? To create the Classes
-    Route::apiResource('tenants/{domain}/classes', ClassController::class)->except('show,index');
+    Route::apiResource('tenants/{domain}/classes', ClassController::class)->except(['show', 'index']);
 
 
     //? To create Teachers
-    Route::apiResource('tenants/{domain}/teachers', TeacherController::class);
+    Route::apiResource('tenants/{domain}/teachers', TeacherController::class)->except('index');
 
     //? TO create the Students
-    Route::apiResource('tenants/{domain}/students', StudentController::class)->except('show','store');
+    Route::apiResource('tenants/{domain}/students', StudentController::class)->except('show', 'store');
     Route::post('tenants/{domain}/students/bulk-upload', [StudentController::class, 'bulkUpload']);
 
     // ? To Filter the students based on calss and their name
@@ -93,7 +94,6 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 });
 
-
 // ?For the Teachers and admin
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(function () {
     Route::post('tenants/{domain}/teachers/me', [TeacherController::class, 'me']);
@@ -119,10 +119,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     Route::get('tenants/{domain}/results/{classId}', [ResultController::class, 'classLedger']);
 
 
-
-
     // ? Bulk Upload
     Route::post('tenants/{domain}/students/bulk-upload', [StudentController::class, 'bulkUpload']);
+    Route::post('tenants/{domain}/students/results/bulk-upload', [ResultController::class, 'bulkStore']);
+
     
 });
 
@@ -153,11 +153,32 @@ Route::middleware(['tenant'])->group(function () {
     // To get the notices
     Route::get('tenants/{domain}/notices', [NoticeController::class, 'index']);
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
-    
 
+
+
+    Route::get('tenants/{domain}/teachers', action: [TeacherController::class, 'index']);
+    // Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
+    
+    
 });
 
 
 
+// ? Apis which needs everywhere access
+Route::get('local-bodies/districts', [App\Http\Controllers\SuperAdmin\LocalBodiesController::class, 'getAllDistricts']);
+Route::get('local-bodies/{district}', [App\Http\Controllers\SuperAdmin\LocalBodiesController::class, 'getByDistrict']);
 
 
+
+// ?For the Government School Controller
+Route::get('schools/by-local-unit/{localUnit}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnit']);
+Route::get('schools/by-local-unit/{localUnit}/{ward}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnitWard']);
+Route::get('school/details/{id}',[SchoolController::class, 'showSchool']);
+
+// Route::prefix('gov')->group(function(){
+//     Route::middleware(['auth', 'role:government'])->group(function () {
+//         Route::get('/dashboard', [GovDashboardController::class, 'index']);
+//         Route::get('/schools/{id}', [GovDashboardController::class, 'showSchool']);
+//     });
+   
+// });

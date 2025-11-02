@@ -20,10 +20,10 @@ class ClassController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:classes,name',
             'section' => 'nullable|string|max:50',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
@@ -40,23 +40,33 @@ class ClassController extends Controller
 
         $data = $validator->validated();
 
-        // ✅ save class_teacher_id + section
-        $schoolClass = SchoolClass::create([
-            'name' => $data['name'],
-            'section' => $data['section'] ?? null,
-            'class_teacher_id' => $data['class_teacher_id'] ?? null,
-        ]);
+        try {
+            $schoolClass = SchoolClass::create([
+                'name' => $data['name'],
+                'section' => $data['section'] ?? null,
+                'class_teacher_id' => $data['class_teacher_id'] ?? null,
+            ]);
 
-        if (!empty($data['subject_ids'])) {
-            $schoolClass->subjects()->sync($data['subject_ids']);
+            if (!empty($data['subject_ids'])) {
+                $schoolClass->subjects()->sync($data['subject_ids']);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Class created successfully',
+                'data' => $schoolClass->load(['subjects', 'classTeacher']),
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Class created successfully',
-            'data' => $schoolClass->load(['subjects', 'classTeacher']), // eager load
-        ]);
     }
+
+
 
 
     public function show($domain, $id)

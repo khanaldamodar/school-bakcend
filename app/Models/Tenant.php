@@ -12,20 +12,30 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     use HasDatabase, HasDomains;
 
 
-    public static function getCustomColumns():array
+    public static function getCustomColumns(): array
     {
         return [
             'id',
             'name',
             'email',
+            'district',
+            'local_unit',
+            'ward',
             'password',
             'database'
         ];
     }
 
-    public function getPasswordAttribute($value){
+    public function getPasswordAttribute($value)
+    {
         return $this->attributes['password'] = bcrypt($value);
     }
+
+    public function getDomainAttribute()
+    {
+        return $this->domains()->first()?->domain;
+    }
+    
 
     public static function booted()
     {
@@ -42,7 +52,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return $this->database; // use your custom DB name
     }
 
-    protected $hidden =[
+    protected $hidden = [
         'password'
     ];
 }

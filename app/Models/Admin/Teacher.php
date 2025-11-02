@@ -14,6 +14,14 @@ class Teacher extends Model
         'phone',
         'qualification',
         'address',
+        'blood_group',
+        'is_disabled',
+        'is_tribe',
+        'image',
+        'gender',
+        'dob',
+        'nationality',
+        'cloudinary_id'
     ];
 
     public function subjects()

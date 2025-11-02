@@ -43,6 +43,9 @@ class TenantController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
+            'district' => 'required|string|max:255',
+            'local_unit' => 'required|string|max:255',
+            'ward' => 'required|integer',
             'domain' => 'required|string|max:255|unique:domains,domain',
             'password' => ['required', Password::defaults()],
             'phone' => 'required|string|max:15'
@@ -51,6 +54,9 @@ class TenantController extends Controller
         $tenant = Tenant::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'district' => $validated['district'],
+            'local_unit' => $validated['local_unit'],
+            'ward' => $validated['ward'],
             'domain' => $validated['domain'],
             'password' => bcrypt($validated['password']),
         ]);

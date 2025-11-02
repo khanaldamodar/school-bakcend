@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\ParentModel;
 use App\Models\Admin\Student;
@@ -16,35 +17,35 @@ class StudentController extends Controller
     /**
      * Display a listing of the resource.
      */
-public function index(Request $request)
-{
-    $query = Student::with(['class', 'parents']);
+    public function index(Request $request)
+    {
+        $query = Student::with(['class', 'parents']);
 
-    if ($request->has('class') && $request->class != '') {
-        $query->where('class_id', $request->class);
+        if ($request->has('class') && $request->class != '') {
+            $query->where('class_id', $request->class);
+        }
+
+        if ($request->has('search') && $request->search != '') {
+            $query->where(function ($q) use ($request) {
+                $q->where('first_name', 'like', '%' . $request->search . '%')
+                    ->orWhere('last_name', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        $students = $query->paginate($request->get('per_page', 10));
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Students fetched successfully',
+            'data' => $students->items(),
+            'meta' => [
+                'current_page' => $students->currentPage(),
+                'last_page' => $students->lastPage(),
+                'per_page' => $students->perPage(),
+                'total' => $students->total(),
+            ],
+        ]);
     }
-
-    if ($request->has('search') && $request->search != '') {
-        $query->where(function($q) use ($request) {
-            $q->where('first_name', 'like', '%' . $request->search . '%')
-              ->orWhere('last_name', 'like', '%' . $request->search . '%');
-        });
-    }
-
-    $students = $query->paginate($request->get('per_page', 10));
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Students fetched successfully',
-        'data' => $students->items(),
-        'meta' => [
-            'current_page' => $students->currentPage(),
-            'last_page' => $students->lastPage(),
-            'per_page' => $students->perPage(),
-            'total' => $students->total(),
-        ],
-    ]);
-}
 
 
 
@@ -54,6 +55,10 @@ public function index(Request $request)
      */
     public function store(Request $request)
     {
+
+        // Get the database name of the system
+        $tenantDomain = tenant()->database;
+
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
@@ -61,8 +66,12 @@ public function index(Request $request)
             'dob' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
             'email' => 'nullable|email|unique:students,email',
+            'blood_group' => 'nullable|string',
+            'is_disabled' => 'nullable|boolean',
+            'is_tribe' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
             'address' => 'string',
+            'image' => 'nullable|file|image|max:2048',
             'class_id' => 'required|exists:classes,id',
             'roll_number' => 'nullable|string|max:50',
             'enrollment_year' => 'nullable|digits:4',
@@ -80,6 +89,22 @@ public function index(Request $request)
         DB::beginTransaction();
 
         try {
+
+            $imageData = null;
+            $cloudinaryId = null;
+            if ($request->hasFile('image')) {
+                $imageData = ImageUploadHelper::uploadToCloud(
+                    $request->file('image'),
+                    "{$tenantDomain}/students"
+                );
+
+                if ($imageData) {
+                    $cloudinaryId = $imageData['public_id']; // save this in DB
+                }
+            }
+
+
+
             // Create student
             $student = Student::create([
                 'first_name' => $validated['first_name'],
@@ -88,6 +113,9 @@ public function index(Request $request)
                 'dob' => $validated['dob'] ?? null,
                 'gender' => $validated['gender'] ?? null,
                 'email' => $validated['email'] ?? null,
+                'blood_group' => $validated['blood_group'] ?? null,
+                'is_disabled' => $validated['is_disabled'] ?? 0,
+                'is_tribe' => $validated['is_tribe'] ?? 0,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
                 'roll_number' => $validated['roll_number'] ?? null,
@@ -95,6 +123,9 @@ public function index(Request $request)
                 'is_transferred' => $validated['is_transferred'] ?? false,
                 'transferred_to' => $validated['transferred_to'] ?? null,
                 'address' => $validated['address'] ?? null,
+                'image' => $imageData['url'] ?? null,
+                'cloudinary_id' => $cloudinaryId,
+
             ]);
 
 
@@ -315,7 +346,7 @@ public function index(Request $request)
     {
         // $request->user() comes from Sanctum auth
         $userId = $request->user()->id;
-
+ 
         // Fetch the student linked to this user_id
         $student = Student::with(['class', 'parents'])
             ->where('user_id', $userId)

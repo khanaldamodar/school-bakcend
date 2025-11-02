@@ -20,7 +20,12 @@ class Student extends Model
         'is_transferred',
         'transferred_to',
         'user_id',
-        'address'  
+        'address',  
+        'blood_group',
+        'is_disabled',
+        'is_tribe',
+        'image',
+        'cloudinary_id'
     ];
     public function class()
     {

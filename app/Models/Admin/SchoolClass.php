@@ -11,6 +11,7 @@ class SchoolClass extends Model
     protected $fillable = [
         'name',
         'class_code',
+        'section',
         'class_teacher_id'
     ];
 
