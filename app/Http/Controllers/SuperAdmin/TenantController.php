@@ -60,6 +60,8 @@ class TenantController extends Controller
             'domain' => $validated['domain'],
             'password' => bcrypt($validated['password']),
         ]);
+
+        
         $tenant->domains()->create([
             'domain' => $validated['domain']
         ]);

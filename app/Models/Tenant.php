@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
@@ -11,48 +10,31 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 {
     use HasDatabase, HasDomains;
 
+    protected $fillable = [
+        'name', 'email', 'district', 'local_unit', 'ward', 'password', 'database', 'domain'
+    ];
 
     public static function getCustomColumns(): array
     {
         return [
-            'id',
-            'name',
-            'email',
-            'district',
-            'local_unit',
-            'ward',
-            'password',
-            'database'
+            'id', 'name', 'email', 'district', 'local_unit', 'ward', 'password', 'database', 'domain'
         ];
     }
 
-    public function getPasswordAttribute($value)
+    public function setPasswordAttribute($value)
     {
-        return $this->attributes['password'] = bcrypt($value);
+        $this->attributes['password'] = bcrypt($value);
     }
 
     public function getDomainAttribute()
     {
         return $this->domains()->first()?->domain;
     }
-    
-
-    public static function booted()
-    {
-        static::creating(function (Tenant $tenant) {
-            // Example: use domain_name as DB name
-            $dbName = strtolower($tenant->domain . '_db');
-            $tenant->database = $dbName;
-            $tenant->tenancy_db_name = $dbName;
-        });
-    }
 
     public function getTenantDatabaseName(): string
     {
-        return $this->database; // use your custom DB name
+        return $this->database;
     }
 
-    protected $hidden = [
-        'password'
-    ];
+    protected $hidden = ['password'];
 }
