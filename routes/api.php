@@ -149,7 +149,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 Route::middleware(['tenant'])->group(function () {
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
-    Route::get('tenants/{domain}/admin/events/{id}', [EventController::class, 'show']);
+    Route::get('tenants/{domain}/events/{id}', [EventController::class, 'show']);
     // To get the notices
     Route::get('tenants/{domain}/notices', [NoticeController::class, 'index']);
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
@@ -175,10 +175,3 @@ Route::get('schools/by-local-unit/{localUnit}', [App\Http\Controllers\Government
 Route::get('schools/by-local-unit/{localUnit}/{ward}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnitWard']);
 Route::get('school/details/{id}',[SchoolController::class, 'showSchool']);
 
-// Route::prefix('gov')->group(function(){
-//     Route::middleware(['auth', 'role:government'])->group(function () {
-//         Route::get('/dashboard', [GovDashboardController::class, 'index']);
-//         Route::get('/schools/{id}', [GovDashboardController::class, 'showSchool']);
-//     });
-   
-// });

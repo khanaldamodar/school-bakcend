@@ -155,12 +155,12 @@ class TeacherController extends Controller
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
             ]);
 
-            // ✅ Sync subjects
+            //  Sync subjects
             if (!empty($data['subject_ids'])) {
                 $teacher->subjects()->sync($data['subject_ids']);
             }
 
-            // ✅ Assign class teacher
+            //  Assign class teacher
             if (!empty($data['class_teacher_of'])) {
                 $class = SchoolClass::find($data['class_teacher_of']);
                 $class->class_teacher_id = $teacher->id;
