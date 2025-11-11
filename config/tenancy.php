@@ -7,7 +7,7 @@ use Stancl\Tenancy\Database\Models\Domain;
 
 return [
     'tenant_model' => Tenant::class,
-    'id_generator' => Stancl\Tenancy\UUIDGenerator::class,
+    'id_generator' => App\Utils\SchoolSlugGenerator::class,
 
     'domain_model' => Domain::class,
 
@@ -51,7 +51,7 @@ return [
          * Tenant database names are created like this:
          * prefix + tenant_id + suffix.
          */
-        'prefix' => 'school',
+        'prefix' => '',
         'suffix' => '',
 
         /**
