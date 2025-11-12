@@ -402,15 +402,15 @@ class ResultController extends Controller
         $savedResults = [];
 
         foreach ($validated['results'] as $resultData) {
-            $canAdd = false;
+            $canAdd = true;
 
-            if ($teacher->class_teacher_of && $teacher->class_teacher_of == $validated['class_id']) {
-                $canAdd = true;
-            }
+            // if ($teacher->class_teacher_of && $teacher->class_teacher_of == $validated['class_id']) {
+            //     $canAdd = true;
+            // }
 
-            if ($teacher->subjects->contains('id', $resultData['subject_id'])) {
-                $canAdd = true;
-            }
+            // if ($teacher->subjects->contains('id', $resultData['subject_id'])) {
+            //     $canAdd = true;
+            // }
 
             if (!$canAdd) {
                 return response()->json([
@@ -523,10 +523,13 @@ class ResultController extends Controller
     {
         // Fetch all students in the class
         $students = Student::where('class_id', $classId)
-            ->with(['results.subject']) // eager load results and subjects
+            ->with(['results.subject', "class"]) // eager load results and subjects
             ->get();
 
         $ledger = [];
+
+        $class = SchoolClass::find($classId);
+        $className = $class->name;
 
         // dd($students->first()->results);
 
@@ -544,6 +547,7 @@ class ResultController extends Controller
 
                 $totalMarks += $subjectTotal;
                 $maxMarks += $subjectMax;
+                $examTerm = $result->exam_type;
 
                 $subjectsData[] = [
                     'subject_name' => $result->subject->name ?? 'N/A',
@@ -551,6 +555,7 @@ class ResultController extends Controller
                     'marks_practical' => $practicalMarks,
                     'total_marks' => $subjectTotal,
                     'max_marks' => $subjectMax,
+                    "exam_type"=> $examTerm
                 ];
             }
 
@@ -558,6 +563,7 @@ class ResultController extends Controller
 
             $ledger[] = [
                 'student_id' => $student->id,
+                'class'=> $className,
                 'student_name' => $student->first_name . ' ' . $student->last_name,
                 'total_marks' => $totalMarks,
                 'max_marks' => $maxMarks,
