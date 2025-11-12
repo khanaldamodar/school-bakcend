@@ -17,8 +17,11 @@ class Setting extends Model
         'facebook',
         'twitter',
         'start_time',
-        'end_time'
+        'end_time',
+        'school_type',
+        'established_date',
+        'principle',
+        'favicon_public_id',
+        'logo_public_id'
     ];
-
-    
 }

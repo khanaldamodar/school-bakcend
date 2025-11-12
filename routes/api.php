@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ResultController;
+use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
@@ -48,6 +49,11 @@ Route::prefix('tenants/{domain}')
 // use App\Http\Controllers\Api\SubjectController;
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
+
+    // ? To update the settings of the school by admin 
+    Route::put('/tenants/{domain}/settings',[SettingController::class, 'update']);
+
+
     // ?To create the subjects 
     Route::apiResource('tenants/{domain}/subjects', SubjectController::class);
     
@@ -147,6 +153,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
+
+
+    // ?To get the Details of the school (Settings)
+    Route::get('/tenants/{domain}/settings',[SettingController::class, 'index']);
+    
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
     Route::get('tenants/{domain}/events/{id}', [EventController::class, 'show']);

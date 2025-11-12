@@ -86,6 +86,11 @@ class TenantController extends Controller
         'phone' => $validated['phone']
     ]);
 
+    \App\Models\Admin\Setting::create([
+        "name" => "Demo",
+        "about"=> "demo",
+    ]);
+
     return response()->json([
         'status' => true,
         'message' => "New School Registered Successfully",
