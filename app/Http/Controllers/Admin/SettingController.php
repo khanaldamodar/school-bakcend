@@ -75,7 +75,7 @@ class SettingController extends Controller
     
     // ?To update the settings of the school
     public function update(Request $request)
-{
+    {
     $settings = Setting::first();
 
     if (!$settings) {
