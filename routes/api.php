@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Government\IndividualSchoolStudents;
+use App\Http\Controllers\Government\IndividualSchoolTeachers;
 use App\Http\Controllers\Government\SchoolController;
 use App\Http\Controllers\SuperAdmin\CentralController;
 use App\Http\Controllers\SuperAdmin\TenantController;
@@ -185,4 +187,14 @@ Route::get('local-bodies/{district}', [App\Http\Controllers\SuperAdmin\LocalBodi
 Route::get('schools/by-local-unit/{localUnit}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnit']);
 Route::get('schools/by-local-unit/{localUnit}/{ward}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnitWard']);
 Route::get('school/details/{id}',[SchoolController::class, 'showSchool']);
+
+
+//? To get the Individual Schools Teachers  List |
+Route::get("/school/teachers/{id}",[IndividualSchoolTeachers::class, 'getAllTeachers']);
+
+// ? To get the Individual Schools Students List |
+Route::get("/school/students/{id}",[IndividualSchoolStudents::class, 'getAllStudents']);
+
+//? to get the Individual Student details for the government
+Route::get("/school/students/{id}/{studentId}",[IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
 

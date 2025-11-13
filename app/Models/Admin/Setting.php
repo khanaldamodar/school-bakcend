@@ -3,6 +3,7 @@
 namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
@@ -24,4 +25,22 @@ class Setting extends Model
         'favicon_public_id',
         'logo_public_id'
     ];
+
+    protected $hidden =[
+        "logo_public_id",
+        "favicon_public_id"
+    ];
+
+    protected static function booted()
+{
+    static::saved(function ($setting) {
+        Cache::forget('settings');
+        Cache::forever('settings', $setting);
+    });
+
+    static::deleted(function () {
+        Cache::forget('settings');
+    });
+}
+
 }
