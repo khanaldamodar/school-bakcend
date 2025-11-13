@@ -22,8 +22,8 @@ class Setting extends Model
         'school_type',
         'established_date',
         'principle',
-        'favicon_public_id',
-        'logo_public_id'
+        `'favicon_public_id',
+        'logo_public_id'`
     ];
 
     protected $hidden =[

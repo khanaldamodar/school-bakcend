@@ -94,6 +94,11 @@ class SettingController extends Controller
         'twitter' => 'sometimes|url|max:255',
         'start_time' => 'sometimes|date_format:H:i:s',
         'end_time' => 'sometimes|date_format:H:i:s',
+        'school_type'=> 'sometimes|string|max:100',
+        'established_date'=> 'sometimes|date',
+        'principle'=> 'sometimes|string|max:100',
+        'favicon_public_id'=> "sometimes|string",
+        'logo_public_id'=> 'sometimes|string'
     ]);
 
     // === Upload Logo to Cloudinary ===
