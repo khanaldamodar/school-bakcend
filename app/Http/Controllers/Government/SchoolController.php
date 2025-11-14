@@ -38,8 +38,19 @@ class SchoolController extends Controller
         $tenant = Tenant::findOrFail($id);
 
         tenancy()->initialize($tenant);
-        $students = Student::all();
-        $teachers = Teacher::all();
+        $students = Student::count();
+        $teachers = Teacher::count();
+
+        // if($students->isEmpty()){
+        //     return response()->json([
+        //         "status"=> false
+        //     ],400);
+        // }
+        // if($teachers->isEmpty()){
+        //     return response()->json([
+        //         "status"=> false
+        //     ],400);
+        // }
         
         tenancy()->end();
         return  response()->json([
