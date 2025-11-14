@@ -57,17 +57,17 @@ class SchoolController extends Controller
         tenancy()->end();
         return response()->json([
             "status" => true,
-            'teachers' => $teachers,
+            'teachers' => $teachers ,
             'students' => $students,
              'details' => [
-                "name"=> $scl->name,
-                "logo"=> $scl->about,
-                "about"=> $scl->about,
-                "address"=> $scl->address,
-                "phone"=> $scl->phone,
-                "email"=> $scl->email,
-                "established_date"=> $scl->established_date,
-                "principle"=> $scl->principle,
+                "name"=> $scl->name ?? null,
+                "logo"=> $scl->logo?? null,
+                "about"=> $scl->about?? null,
+                "address"=> $scl->address?? null,
+                "phone"=> $scl->phone?? null,
+                "email"=> $scl->email?? null,
+                "established_date"=> $scl->established_date?? null,
+                "principle"=> $scl->principle?? null,
 
 
 
