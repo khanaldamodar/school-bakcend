@@ -51,27 +51,24 @@ class SchoolController extends Controller
         $students = Student::count();
         $teachers = Teacher::count();
         $scl = Setting::find(1);
-
-
-
         tenancy()->end();
         return response()->json([
             "status" => true,
-            'teachers' => $teachers ,
+            'teachers' => $teachers,
             'students' => $students,
-             'details' => [
-                "name"=> $scl->name ?? null,
-                "logo"=> $scl->logo?? null,
-                "about"=> $scl->about?? null,
-                "address"=> $scl->address?? null,
-                "phone"=> $scl->phone?? null,
-                "email"=> $scl->email?? null,
-                "established_date"=> $scl->established_date?? null,
-                "principle"=> $scl->principle?? null,
+            'details' => [
+                "name" => $scl->name ?? null,
+                "logo" => $scl->logo ?? null,
+                "about" => $scl->about ?? null,
+                "address" => $scl->address ?? null,
+                "phone" => $scl->phone ?? null,
+                "email" => $scl->email ?? null,
+                "established_date" => $scl->established_date ?? null,
+                "principle" => $scl->principle ?? null,
 
 
 
-             ],
+            ],
             "message" => "School Fetched SuccessFully"
         ], 200);
 

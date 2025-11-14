@@ -190,11 +190,15 @@ Route::get('school/details/{id}',[SchoolController::class, 'showSchool']);
 
 
 //? To get the Individual Schools Teachers  List |
-Route::get("/school/teachers/{id}",[IndividualSchoolTeachers::class, 'getAllTeachers']);
+Route::get("/school/{schoolId}/teachers",[IndividualSchoolTeachers::class, 'getAllTeachers']);
+
+// ? Individual Teacher section for Teacher Details
+Route::get("/school/{schoolId}/teacher/{teacherId}",[IndividualSchoolTeachers::class, 'getTeacherDetails']);
+
 
 // ? To get the Individual Schools Students List |
-Route::get("/school/students/{id}",[IndividualSchoolStudents::class, 'getAllStudents']);
+Route::get("/school/{schoolId}/students",[IndividualSchoolStudents::class, 'getAllStudents']);
 
 //? to get the Individual Student details for the government
-Route::get("/school/students/{id}/{studentId}",[IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
+Route::get("/school/{SchoolId}/students/{studentId}",[IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
 

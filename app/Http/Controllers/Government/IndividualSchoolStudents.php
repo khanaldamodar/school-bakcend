@@ -9,9 +9,9 @@ use Illuminate\Http\Request;
 
 class IndividualSchoolStudents extends Controller
 {
-    public function getAllStudents($id)
+    public function getAllStudents($schoolId)
     {
-        $tenant = Tenant::findOrFail($id);
+        $tenant = Tenant::findOrFail($schoolId);
         tenancy()->initialize($tenant);
         $students = Student::all();
 
@@ -37,10 +37,10 @@ class IndividualSchoolStudents extends Controller
         ], 200);
     }
 
-    public function getIndividualStudentDetails($id, $studentId)
+    public function getIndividualStudentDetails($schoolId, $studentId)
     {
 
-        $tenant = Tenant::findOrFail($id);
+        $tenant = Tenant::findOrFail($schoolId);
         tenancy()->initialize($tenant);
         $student = Student::findOrFail($studentId);
 

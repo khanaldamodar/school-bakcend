@@ -29,9 +29,9 @@ class IndividualSchoolTeachers extends Controller
 
 
 
-    public function getAllTeachers($id)
+    public function getAllTeachers($schoolId)
     {
-        $tenant = Tenant::findOrFail($id);
+        $tenant = Tenant::findOrFail($schoolId);
         tenancy()->initialize($tenant);
 
         if (!$tenant) {
@@ -57,5 +57,37 @@ class IndividualSchoolTeachers extends Controller
             "data" => $teachers,
 
         ], 200);
+    }
+
+    public function getTeacherDetails($schoolId, $teacherId)
+    {
+        $tenant = Tenant::findOrFail($schoolId);
+        tenancy()->initialize($tenant);
+
+        if (!$tenant) {
+            return response()->json([
+                "status" => false,
+                "message" => "There is no school with given id",
+            ], 404);
+        }
+
+        $teacher = Teacher::findOrFail($teacherId);
+        // dd($teacher->name);
+        
+        if (!$teacher) {
+            return response()->json([
+                "status" => true,
+                "message" => "No Teachers Found!!",
+            ], 404);
+        }
+
+        
+            return response()->json([
+                "status" => true,
+                "message" => "No Teachers Found!!",
+                "teacher"=> $teacher,
+            ], 404);
+        
+
     }
 }
