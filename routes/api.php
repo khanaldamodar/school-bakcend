@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Government\AnalyticsController;
+use App\Http\Controllers\Government\GovernmentController;
 use App\Http\Controllers\Government\IndividualSchoolStudents;
 use App\Http\Controllers\Government\IndividualSchoolTeachers;
 use App\Http\Controllers\Government\SchoolController;
@@ -166,14 +168,13 @@ Route::middleware(['tenant'])->group(function () {
     // To get the notices
     Route::get('tenants/{domain}/notices', [NoticeController::class, 'index']);
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
-
-
-
     Route::get('tenants/{domain}/teachers', action: [TeacherController::class, 'index']);
     // Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
-    
-    
 });
+
+// ?Register New Government account
+Route::post("/auth/gov",[GovernmentController::class, 'register']);
+Route::post("/auth/gov/login",[GovernmentController::class, 'login']);
 
 
 
@@ -201,4 +202,17 @@ Route::get("/school/{schoolId}/students",[IndividualSchoolStudents::class, 'getA
 
 //? to get the Individual Student details for the government
 Route::get("/school/{SchoolId}/students/{studentId}",[IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
+
+
+// ? for the filters
+Route::get('/single-school/{schoolId}/{isTribe?}/{isDisable?}/{gender?}', [AnalyticsController::class, 'singleSchool']);
+Route::get('students/filter', [AnalyticsController::class, 'filterStudents']);
+Route::get('/teachers/filter', [AnalyticsController::class, 'filterTeachers']);
+Route::get("/multiple-school/{school1}/{school2}",[AnalyticsController::class, "multipleSchool"]);
+
+
+// All in One
+Route::post('/gov/analytics', [AnalyticsController::class, 'filter']);
+
+
 
