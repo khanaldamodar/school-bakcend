@@ -7,6 +7,7 @@ use App\Models\Admin\Student;
 use App\Models\Admin\Teacher;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 class AnalyticsController extends Controller
 {
     // ? To filter the students
@@ -176,103 +177,147 @@ class AnalyticsController extends Controller
         tenancy()->initialize($tenant1);
         tenancy()->initialize($tenant2);
 
-
-
         $school1Std = Student::count();
         $school2Std = Student::count();
         dd($school1Std, $school2Std);
-
-
-
-
-
     }
-
-
     public function filter(Request $request)
-    {
-        // 1. Validate request
-        $request->validate([
-            "mode" => "required|in:single,multiple",
-            "schools" => "required|array|min:1",
-            "type" => "required|in:students,teachers",
+{
+    $request->validate([
+        "mode" => "required|in:single,multiple",
+        "schools" => "required|array|min:1",
+        "type" => "required|in:students,teachers",
 
-            // Optional filters
-            "gender" => "nullable",
-            "is_tribe" => "nullable",
-            "blood_group" => "nullable",
-            "is_disabled" => "nullable",
-            "qualification" => "nullable"
-        ]);
+        "gender" => "nullable",
+        "is_tribe" => "nullable",
+        "blood_group" => "nullable",
+        "is_disabled" => "nullable",
+        "qualification" => "nullable"
+    ]);
 
-        $results = [];
+    $results = [];
 
-        // 2. Loop through selected schools (tenant per school)
-        foreach ($request->schools as $schoolDb) {
+    foreach ($request->schools as $schoolDb) {
 
-            $tenant = Tenant::where("id", $schoolDb)->firstOrFail();
-            tenancy()->initialize($tenant);   // Switch Tenant DB
+        $tenant = Tenant::findOrFail($schoolDb);
+        tenancy()->initialize($tenant);  // Switch tenant DB
 
-            // 3. Decide which dataset to fetch
-            if ($request->type === "students") {
-                $query = Student::query();
+        // Choose which model to use
+        $query = $request->type === "students"
+            ? Student::query()
+            : Teacher::query();
 
-                if ($request->filled("gender")) {
-                    $query->where("gender", $request->gender);
-                }
-
-                if ($request->filled("is_tribe")) {
-                    $query->where("is_tribe", $request->is_tribe);
-                }
-
-                if ($request->filled("blood_group")) {
-                    $bg = str_replace(" ", "+", $request->blood_group);
-                    $query->where("blood_group", $bg);
-                }
-
-                if ($request->filled("is_disabled")) {
-                    $query->where("is_disabled", $request->is_disabled);
-                }
-
-                $data = $query->get();
-            } else if ($request->type === "teachers") {
-                $query = Teacher::query();
-
-                if ($request->filled("gender")) {
-                    $query->where("gender", $request->gender);
-                }
-
-                if ($request->filled("is_tribe")) {
-                    $query->where("is_tribe", $request->is_tribe);
-                }
-
-                if ($request->filled("qualification")) {
-                    $query->where("qualification", "like", "%" . $request->qualification . "%");
-                }
-
-                if ($request->filled("is_disabled")) {
-                    $query->where("is_disabled", $request->is_disabled);
-                }
-
-                $data = $query->get();
-            }
-
-            // 4. Push result per school
-            $results[] = [
-                "school_id" => $schoolDb,
-                "count" => $data->count(),
-                "records" => $data
-            ];
+        // Apply filters dynamically
+        if ($request->filled("is_tribe")) {
+            $query->where("is_tribe", $request->is_tribe);
         }
 
-        return response()->json([
-            "mode" => $request->mode,
-            "type" => $request->type,
-            "result" => $results
-        ]);
+        if ($request->filled("gender")) {
+            $query->where("gender", $request->gender);
+        }
+
+        if ($request->filled("blood_group") && $request->type === "students") {
+            $bg = str_replace(" ", "+", $request->blood_group);
+            $query->where("blood_group", $bg);
+        }
+
+        if ($request->filled("qualification") && $request->type === "teachers") {
+            $query->where("qualification", "like", "%" . $request->qualification . "%");
+        }
+
+        if ($request->filled("is_disabled")) {
+            $query->where("is_disabled", $request->is_disabled);
+        }
+
+        // Get filtered dataset
+        $data = $query->get();
+
+        // Gender-based count (from final filtered data)
+        $maleCount = $data->where("gender", "male")->count();
+        $femaleCount = $data->where("gender", "female")->count();
+        $otherCount = $data->where("gender", "others")->count();
+
+        // Push final response
+        $results[] = [
+            "school_id" => $schoolDb,
+            "total" => $data->count(),
+            "male" => $maleCount,
+            "female" => $femaleCount,
+            "others" => $otherCount,
+        ];
     }
 
+    return response()->json([
+        "mode" => $request->mode,
+        "type" => $request->type,
+        "result" => $results
+    ]);
+}
 
 
+    public function singleSchoolStudentFilter(Request $request)
+    {
 
+        $validator = Validator::make($request->all(), [
+            'schoolId' => "required|string",
+            "is_tribe" => "nullable",
+            
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                "status" => false,
+                "message" => "Validation Failed",
+                "error" => $validator->errors()
+            ], 400);
+        }
+
+
+        $tenant = Tenant::findOrFail($request->schoolId);
+        tenancy()->initialize($tenant); 
+
+        $totalStudents = Student::all()->count();
+        $maleStudents = Student::where("gender", "male")->count();
+        $femaleStudents = Student::where("gender", "female")->count();
+        $otherStudents = Student::where("gender", "others")->count();
+        
+        
+        if($request->is_tribe === 1){
+
+            $totalTribeStudents = Student::where("is_tribe", $request->is_tribe)->count();
+            $tribeMaleStudents = Student::where("is_tribe", $request->is_tribe)->where("gender", "male")->count();
+            $tribeFemaleStudents = Student::where("is_tribe", $request->is_tribe)->where("gender", "female")->count();
+            $tribeOthersStudents = Student::where("is_tribe", $request->is_tribe)->where("gender", "others")->count();
+
+            $tribeRecords[] =[
+                "total" => $totalTribeStudents,
+                "male"=> $tribeMaleStudents,
+                "female"=> $tribeFemaleStudents,
+                "others"=> $tribeOthersStudents
+            ];
+
+        return response()->json([
+            "status"=> true,
+            "message"=> "Tribe student fetched",
+            "tribe"=> $tribeRecords
+        ]);
+        }
+        
+        $records[] = [
+            "school_id"=> $request->schoolId,
+            "total"=> $totalStudents,
+            "male"=> $maleStudents,
+            "female"=> $femaleStudents,
+            "others" => $otherStudents
+        ];
+
+        return response()->json([
+            "status"=> true,
+            "message"=> "Single school Report",
+            "records"=> $records
+        ]);
+
+        
+
+    }
 }

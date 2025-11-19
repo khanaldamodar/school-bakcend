@@ -213,6 +213,7 @@ Route::get("/multiple-school/{school1}/{school2}",[AnalyticsController::class, "
 
 // All in One
 Route::post('/gov/analytics', [AnalyticsController::class, 'filter']);
+Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
 
 
 
