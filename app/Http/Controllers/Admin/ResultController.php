@@ -603,7 +603,7 @@ class ResultController extends Controller
 
 
         // Base query for results with relationships
-        $query = Result::with([
+        $query = Result::with(relations: [
             'subject:id,name,theory_marks,practical_marks',
             'class:id,name,class_code',
             'teacher:id,first_name,last_name'

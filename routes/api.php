@@ -202,6 +202,7 @@ Route::get("/school/{schoolId}/students",[IndividualSchoolStudents::class, 'getA
 
 //? to get the Individual Student details for the government
 Route::get("/school/{SchoolId}/students/{studentId}",[IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
+Route::get('/school/{schoolId}/students/{studentId}/result', [IndividualSchoolStudents::class, 'getIndividualStudentResult']);
 
 
 // ? for the filters
@@ -209,6 +210,7 @@ Route::get('/single-school/{schoolId}/{isTribe?}/{isDisable?}/{gender?}', [Analy
 Route::get('students/filter', [AnalyticsController::class, 'filterStudents']);
 Route::get('/teachers/filter', [AnalyticsController::class, 'filterTeachers']);
 Route::get("/multiple-school/{school1}/{school2}",[AnalyticsController::class, "multipleSchool"]);
+
 
 
 // All in One

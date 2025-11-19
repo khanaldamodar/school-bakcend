@@ -253,8 +253,6 @@ class AnalyticsController extends Controller
         "result" => $results
     ]);
 }
-
-
     public function singleSchoolStudentFilter(Request $request)
     {
 
