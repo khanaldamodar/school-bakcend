@@ -235,7 +235,7 @@ class AnalyticsController extends Controller
         // Gender-based count (from final filtered data)
         $maleCount = $data->where("gender", "male")->count();
         $femaleCount = $data->where("gender", "female")->count();
-        $otherCount = $data->where("gender", "others")->count();
+        $otherCount = $data->where("gender", "other")->count();
 
         // Push final response
         $results[] = [
@@ -243,7 +243,7 @@ class AnalyticsController extends Controller
             "total" => $data->count(),
             "male" => $maleCount,
             "female" => $femaleCount,
-            "others" => $otherCount,
+            "other" => $otherCount,
         ];
     }
 
