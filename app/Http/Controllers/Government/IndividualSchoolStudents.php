@@ -115,7 +115,7 @@ class IndividualSchoolStudents extends Controller
         return response()->json([
             "status" => true,
             "message" => "Result fetched Success",
-            "result"=> $results
+            "result" => $results
         ]);
 
 
