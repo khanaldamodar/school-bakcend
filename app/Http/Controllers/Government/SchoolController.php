@@ -13,15 +13,38 @@ use Illuminate\Support\Facades\DB;
 class SchoolController extends Controller
 {
     public function getSchoolsByLocalUnit(Request $request, $localUnit)
-    {
-        $schools = Tenant::where('local_unit', $localUnit)->get();
-        return response()->json([
-            'status' => true,
-            'data' => $schools,
-            "message" => "Schools fetched successfully",
-            'total_schools' => $schools->count()
-        ], 200);
+{
+    $schools = Tenant::where('local_unit', $localUnit)->get();
+
+    $data = [];
+
+    foreach ($schools as $school) {
+
+        // 🔄 Switch database of the tenant (very important)
+        tenancy()->initialize($school);
+
+        // Count students and teachers for this school
+        $studentCount = Student::count();
+        $teacherCount = Teacher::count();
+
+        // Append result
+        $data[] = [
+            "school" => $school,
+            "counts" => [
+                "studentCount" => $studentCount,
+                "teacherCount" => $teacherCount
+            ]
+        ];
     }
+
+    return response()->json([
+        'status' => true,
+        'message' => "Schools fetched successfully",
+        'total_schools' => $schools->count(),
+        'data' => $data
+    ], 200);
+}
+
     public function getSchoolsByLocalUnitWard(Request $request, $localUnit, $ward)
     {
         $schools = Tenant::where('local_unit', $localUnit)
