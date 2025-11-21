@@ -55,12 +55,12 @@ Route::prefix('tenants/{domain}')
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // ? To update the settings of the school by admin 
-    Route::put('/tenants/{domain}/settings',[SettingController::class, 'update']);
+    Route::put('/tenants/{domain}/settings', [SettingController::class, 'update']);
 
 
     // ?To create the subjects 
     Route::apiResource('tenants/{domain}/subjects', SubjectController::class);
-    
+
 
     //? To create the Classes
     Route::apiResource('tenants/{domain}/classes', ClassController::class)->except(['show', 'index']);
@@ -97,8 +97,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // To manage the Events
     Route::apiResource('tenants/{domain}/events', EventController::class)->except('index', 'show');
-   
-   
+
+
     // To manage the Notices
     Route::apiResource('tenants/{domain}/notices', NoticeController::class)->except('index', 'show');
 
@@ -116,7 +116,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     Route::get('tenants/{domain}/students/class/{classId}', [StudentController::class, 'filterByClass']);
     Route::post('tenants/{domain}/students/results', [ResultController::class, 'store']);
 
-    
+
     Route::post('tenants/{domain}/students/results/create', [ResultController::class, 'createResultByTeacher']);
 
     Route::get('tenants/{domain}/classes/{classId}/subjects', [SubjectController::class, 'getSubjectsByClass']);
@@ -133,14 +133,14 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     Route::post('tenants/{domain}/students/bulk-upload', [StudentController::class, 'bulkUpload']);
     Route::post('tenants/{domain}/students/results/bulk-upload', [ResultController::class, 'bulkStore']);
 
-    
+
 });
 
 
 // ?For the students and parents
 Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'])->group(function () {
-    Route::post('tenants/{domain}/students/profile', [StudentController::class,'profile']);
-    Route::get('tenants/{domain}/students/{id}', [StudentController::class,'show']);
+    Route::post('tenants/{domain}/students/profile', [StudentController::class, 'profile']);
+    Route::get('tenants/{domain}/students/{id}', [StudentController::class, 'show']);
 
 
     Route::get('tenants/{domain}/students/result', [ResultController::class, 'studentResult']);
@@ -160,8 +160,8 @@ Route::middleware(['tenant'])->group(function () {
 
 
     // ?To get the Details of the school (Settings)
-    Route::get('/tenants/{domain}/settings',[SettingController::class, 'index']);
-    
+    Route::get('/tenants/{domain}/settings', [SettingController::class, 'index']);
+
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
     Route::get('tenants/{domain}/events/{id}', [EventController::class, 'show']);
@@ -173,8 +173,8 @@ Route::middleware(['tenant'])->group(function () {
 });
 
 // ?Register New Government account
-Route::post("/auth/gov",[GovernmentController::class, 'register']);
-Route::post("/auth/gov/login",[GovernmentController::class, 'login']);
+Route::post("/auth/gov", [GovernmentController::class, 'register']);
+Route::post("/auth/gov/login", [GovernmentController::class, 'login']);
 
 
 
@@ -185,37 +185,25 @@ Route::get('local-bodies/{district}', [App\Http\Controllers\SuperAdmin\LocalBodi
 
 
 // ?For the Government School Controller
-Route::get('schools/by-local-unit/{localUnit}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnit']);
-Route::get('schools/by-local-unit/{localUnit}/{ward}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnitWard']);
-Route::get('school/details/{id}',[SchoolController::class, 'showSchool']);
-
-
-//? To get the Individual Schools Teachers  List |
-Route::get("/school/{schoolId}/teachers",[IndividualSchoolTeachers::class, 'getAllTeachers']);
-
-// ? Individual Teacher section for Teacher Details
-Route::get("/school/{schoolId}/teacher/{teacherId}",[IndividualSchoolTeachers::class, 'getTeacherDetails']);
-
-
-// ? To get the Individual Schools Students List |
-Route::get("/school/{schoolId}/students",[IndividualSchoolStudents::class, 'getAllStudents']);
-
-//? to get the Individual Student details for the government
-Route::get("/school/{SchoolId}/students/{studentId}",[IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
-Route::get('/school/{schoolId}/students/{studentId}/result', [IndividualSchoolStudents::class, 'getIndividualStudentResult']);
-
-
-// ? for the filters
-Route::get('/single-school/{schoolId}/{isTribe?}/{isDisable?}/{gender?}', [AnalyticsController::class, 'singleSchool']);
-Route::get('students/filter', [AnalyticsController::class, 'filterStudents']);
-Route::get('/teachers/filter', [AnalyticsController::class, 'filterTeachers']);
-Route::get("/multiple-school/{school1}/{school2}",[AnalyticsController::class, "multipleSchool"]);
-
-
-
-// All in One
-Route::post('/gov/analytics', [AnalyticsController::class, 'filter']);
-Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
-
-
-
+Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
+    Route::get('schools/by-local-unit/{localUnit}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnit']);
+    Route::get('schools/by-local-unit/{localUnit}/{ward}', [App\Http\Controllers\Government\SchoolController::class, 'getSchoolsByLocalUnitWard']);
+    Route::get('school/details/{id}', [SchoolController::class, 'showSchool']);
+    //? To get the Individual Schools Teachers  List |
+    Route::get("/school/{schoolId}/teachers", [IndividualSchoolTeachers::class, 'getAllTeachers']);
+    // ? Individual Teacher section for Teacher Details
+    Route::get("/school/{schoolId}/teacher/{teacherId}", [IndividualSchoolTeachers::class, 'getTeacherDetails']);
+    // ? To get the Individual Schools Students List |
+    Route::get("/school/{schoolId}/students", [IndividualSchoolStudents::class, 'getAllStudents']);
+    //? to get the Individual Student details for the government
+    Route::get("/school/{SchoolId}/students/{studentId}", [IndividualSchoolStudents::class, 'getIndividualStudentDetails']);
+    Route::get('/school/{schoolId}/students/{studentId}/result', [IndividualSchoolStudents::class, 'getIndividualStudentResult']);
+    // ? for the filters
+    Route::get('/single-school/{schoolId}/{isTribe?}/{isDisable?}/{gender?}', [AnalyticsController::class, 'singleSchool']);
+    Route::get('students/filter', [AnalyticsController::class, 'filterStudents']);
+    Route::get('/teachers/filter', [AnalyticsController::class, 'filterTeachers']);
+    Route::get("/multiple-school/{school1}/{school2}", [AnalyticsController::class, "multipleSchool"]);
+    // All in One
+    Route::post('/gov/analytics', [AnalyticsController::class, 'filter']);
+    Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
+});

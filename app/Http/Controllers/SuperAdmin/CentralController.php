@@ -33,6 +33,9 @@ class CentralController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => "string|required|max:255",
             'email' => "required|email",
+            'role'=> "required|string",
+            'district' => 'nullable|string',
+            'local_bodies'=> 'nullable|string',
             'password' => "required",
         ]);
 
@@ -49,6 +52,9 @@ class CentralController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'role' => $data['role'],
+            'district' => $data['district'],
+            'local_bodies' => $data['local_bodies'],
             'password' => bcrypt($data['password']),
         ]);
 
