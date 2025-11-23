@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Government\AllTeachersController;
 use App\Http\Controllers\Government\AnalyticsController;
 use App\Http\Controllers\Government\GovernmentController;
 use App\Http\Controllers\Government\IndividualSchoolStudents;
@@ -204,4 +205,10 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     // All in One
     Route::post('/gov/analytics', [AnalyticsController::class, 'filter']);
     Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
+
+
+
+    // Get all the Teachers of thee Nagarpalica
+    Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
+
 });
