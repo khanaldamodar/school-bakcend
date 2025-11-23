@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CreateUserController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\NoticeController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StudentController;
@@ -169,6 +170,10 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
     Route::get('tenants/{domain}/teachers', action: [TeacherController::class, 'index']);
     // Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
+
+
+    // Report api for school
+    Route::get('tenants/{domain}/reports', [ReportController::class, 'getReports']);
 });
 
 // ?Register New Government account
@@ -205,9 +210,6 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     // All in One
     Route::post('/gov/analytics', [AnalyticsController::class, 'filter']);
     Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
-
-
-
     // Get all the Teachers of thee Nagarpalica
     Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
 
