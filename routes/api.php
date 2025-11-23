@@ -157,8 +157,6 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
-
-
     // ?To get the Details of the school (Settings)
     Route::get('/tenants/{domain}/settings', [SettingController::class, 'index']);
 
