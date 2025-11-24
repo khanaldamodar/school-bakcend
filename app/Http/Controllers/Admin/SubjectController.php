@@ -39,6 +39,7 @@ class SubjectController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:subjects,name',
+            "subject_code" => "nullable|string",
             'theory_marks' => 'required|integer|min:0',
             'practical_marks' => 'required|integer|min:0',
             'teacher_id' => 'nullable|exists:users,id',

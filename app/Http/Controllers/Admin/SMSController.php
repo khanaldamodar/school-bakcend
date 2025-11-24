@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\SchoolClass;
 use Illuminate\Http\Request;
 
 use App\Services\SMSService;
@@ -113,7 +114,6 @@ class SMSController extends Controller
             }
         }
 
-
         /**
          *  4. Send to ALL (parents + students + teachers)
          */
@@ -124,8 +124,6 @@ class SMSController extends Controller
                 ->merge(Teacher::pluck("phone"))
                 ->unique();
         }
-
-
         /**
          *  Send SMS to all numbers
          */
@@ -138,5 +136,22 @@ class SMSController extends Controller
             "count" => $numbers->count(),
             "message" => "SMS sent successfully to {$numbers->count()} receivers."
         ]);
+    }
+    public function getClass()
+    {
+        $classes = SchoolClass::select('id', 'name')->get();
+
+        if ($classes->isEmpty()) {
+            return response()->json([
+                "status" => false,
+                "message" => "No Class Found"
+            ], 404);
+        }
+
+        return response()->json([
+            "status" => true,
+            "message" => "Class Fetched Successfully",
+            "data" => $classes
+        ], 200);
     }
 }
