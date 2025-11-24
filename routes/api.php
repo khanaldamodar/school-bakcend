@@ -169,11 +169,13 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('tenants/{domain}/notices', [NoticeController::class, 'index']);
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
     Route::get('tenants/{domain}/teachers', action: [TeacherController::class, 'index']);
-    // Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
+    //? Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
 
 
-    // Report api for school
+    //? Report api for school
     Route::get('tenants/{domain}/reports', [ReportController::class, 'getReports']);
+    Route::post('tenants/{domain}/send-sms', [\App\Http\Controllers\Admin\SMSController::class, 'send']);
+    Route::get('tenants/{domain}/send-sms-teachers', [\App\Http\Controllers\Admin\SMSController::class,'sendToTeachers']);
 });
 
 // ?Register New Government account
@@ -214,3 +216,6 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
 
 });
+
+
+

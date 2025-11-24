@@ -23,7 +23,6 @@ class ImageUploadHelper
         if (!$image instanceof UploadedFile) {
             return null;
         }
-
         try {
             // Delete old image if provided
             if ($oldPublicId) {
