@@ -40,6 +40,8 @@ class SettingController extends Controller
             "twitter" => 'string|url|nullable',
             "start_time" => 'date_format:H:i:s|required',
             "end_time" => 'date_format:H:i:s|required',
+            "isWeighted" => "nullable",
+            "number_of_exams" => "nullable"
         ]);
 
         if ($validator->fails()) {

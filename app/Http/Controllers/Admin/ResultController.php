@@ -74,6 +74,7 @@ class ResultController extends Controller
                 'marks_theory' => 'required|integer|min:0',
                 'marks_practical' => 'required|integer|min:0',
                 'exam_type' => 'nullable|string|max:255',
+                'exam_date' => 'nullable',
             ]);
 
             $subject = \App\Models\Admin\Subject::findOrFail($validated['subject_id']);
@@ -84,7 +85,7 @@ class ResultController extends Controller
             $max_marks = $max_theory + $max_practical;
             $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
 
-            $result = \App\Models\Admin\Result::create([
+            $result = Result::create([
                 'student_id' => $validated['student_id'],
                 'class_id' => $validated['class_id'],
                 'subject_id' => $validated['subject_id'],
@@ -93,6 +94,7 @@ class ResultController extends Controller
                 'marks_practical' => $validated['marks_practical'],
                 'gpa' => $gpa,
                 'exam_type' => $validated['exam_type'] ?? null,
+                'exam_date' => $validated['exam_date'] ?? null,
             ]);
 
             return response()->json([
@@ -148,6 +150,7 @@ class ResultController extends Controller
             'marks_theory' => 'sometimes|integer|min:0',
             'marks_practical' => 'sometimes|integer|min:0',
             'exam_type' => 'nullable|string|max:255',
+            'exam_date' => 'nullable',
         ]);
 
         // Permission check for teacher
@@ -391,6 +394,7 @@ class ResultController extends Controller
             'student_id' => 'required|exists:students,id',
             'class_id' => 'required|exists:classes,id',
             'exam_type' => 'nullable|string|max:255',
+            'exam_date' => 'nullable',
             'results' => 'required|array',
             'results.*.subject_id' => 'required|exists:subjects,id',
             'results.*.marks_theory' => 'required|integer|min:0',
@@ -436,6 +440,7 @@ class ResultController extends Controller
                 'marks_practical' => $resultData['marks_practical'],
                 'gpa' => $gpa,
                 'exam_type' => $validated['exam_type'] ?? null,
+                'exam_date' => $validated['exam_date'] ?? null,
             ]);
         }
 
@@ -693,6 +698,7 @@ class ResultController extends Controller
         $validated = $request->validate([
             'class_id' => 'required|exists:school_classes,id',
             'exam_type' => 'required|string|max:255',
+            'exam_date' => 'required',
             'results' => 'required|array|min:1',
             'results.*.student_id' => 'required|exists:students,id',
             'results.*.subject_id' => 'required|exists:subjects,id',
@@ -721,6 +727,7 @@ class ResultController extends Controller
                 'marks_practical' => $data['marks_practical'],
                 'gpa' => $gpa,
                 'exam_type' => $validated['exam_type'],
+                'exam_date' => $validated['exam_date'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ];

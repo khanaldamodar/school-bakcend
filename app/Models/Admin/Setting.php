@@ -23,7 +23,9 @@ class Setting extends Model
         'established_date',
         'principle',
         'favicon_public_id',
-        'logo_public_id'
+        'logo_public_id',
+        'number_of_exams',
+        'isWeighted'
     ];
 
     protected $hidden =[

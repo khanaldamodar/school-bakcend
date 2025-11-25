@@ -15,6 +15,7 @@ class Result extends Model
         'marks_practical',
         'gpa',
         'exam_type',
+        'exam_date'
     ];
 
     // public function student()
