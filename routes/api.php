@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\CreateUserController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EventController;
+use App\Http\Controllers\Admin\ExtraCurricularActivityController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ResultController;
@@ -63,6 +64,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // ?To create the subjects 
     Route::apiResource('tenants/{domain}/subjects', SubjectController::class);
+    Route::post('tenants/{domain}/extra-curricular', [ExtraCurricularActivityController::class, 'store']);
 
 
     //? To create the Classes

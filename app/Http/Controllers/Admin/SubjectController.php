@@ -15,7 +15,7 @@ class SubjectController extends Controller
      */
     public function index()
     {
-        $subjects = Subject::with('teacher:id,name,email')->get();
+        $subjects = Subject::with('teacher:id,name,email', 'activities')->get();
 
         if ($subjects->isEmpty()) {
             return response()->json([
@@ -48,7 +48,7 @@ class SubjectController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'status' => false,
-                'maeesage' => 'Validation Failed',
+                'message' => 'Validation Failed',
                 'error' => $validator->errors()
             ], 422);
         }
@@ -79,10 +79,10 @@ class SubjectController extends Controller
      */
     public function update(Request $request, string $domain,  int $id)
     {
-        $subject = Subject::findOrFail($id);
+        $subject = Subject::with('activities')->findOrFail($id);
 
         $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
+            'name' => 'sometimes|string|max:255|unique:subjects,name',
             'theory_marks' => 'sometimes|integer|min:0',
             'practical_marks' => 'sometimes|integer|min:0',
             'teacher_id' => 'nullable|exists:users,id',

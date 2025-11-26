@@ -36,4 +36,11 @@ class Subject extends Model
                 ->withTimestamps();
 }
 
+
+public function activities()
+{
+    return $this->hasMany(ExtraCurricularActivity::class);
+}
+
+
 }
