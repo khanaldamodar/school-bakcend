@@ -7,6 +7,8 @@ use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+
 
 class SubjectController extends Controller
 {
@@ -78,23 +80,74 @@ class SubjectController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, string $domain, int $id)
-    {
-        $subject = Subject::with('activities')->findOrFail($id);
+{
+    $subject = Subject::with('activities')->findOrFail($id);
 
-        $data = $request->validate([
-            'name' => 'sometimes|string|max:255|unique:subjects,name',
-            'theory_marks' => 'sometimes|integer|min:0',
-            'practical_marks' => 'sometimes|integer|min:0',
-            'teacher_id' => 'nullable|exists:users,id',
-        ]);
+    $request->validate([
+        'name' => 'sometimes|string|max:255|unique:subjects,name,' . $id,
+        'theory_marks' => 'sometimes|integer|min:0',
+        'practical_marks' => 'sometimes|integer|min:0',
+        'teacher_id' => 'nullable|exists:users,id',
 
-        $subject->update($data);
+        // ACTIVITY VALIDATION
+        'activities' => 'nullable|array',
+        'activities.*.id' => 'nullable|exists:extra_curricular_activities,id',
+        'activities.*.activity_name' => 'required|string|max:255',
+        'activities.*.full_marks' => 'nullable|integer|min:0',
+        'activities.*.pass_marks' => 'nullable|integer|min:0',
+    ]);
 
-        return response()->json([
-            'message' => 'Subject updated successfully',
-            'data' => $subject
-        ], 201);
-    }
+    DB::transaction(function () use ($request, $subject) {
+
+        // UPDATE SUBJECT
+        $subject->update($request->only([
+            'name', 'theory_marks', 'practical_marks', 'teacher_id'
+        ]));
+
+        if ($request->has('activities')) {
+
+            $existingIds = $subject->activities->pluck('id')->toArray();
+            $incomingIds = collect($request->activities)
+                ->pluck('id')
+                ->filter()
+                ->toArray();
+
+            // DELETE REMOVED ACTIVITIES
+            $deleteIds = array_diff($existingIds, $incomingIds);
+            if (!empty($deleteIds)) {
+                \App\Models\Admin\ExtraCurricularActivity::whereIn('id', $deleteIds)->delete();
+            }
+
+            // UPDATE OR CREATE ACTIVITIES
+            foreach ($request->activities as $activity) {
+
+                if (isset($activity['id'])) {
+                    // UPDATE
+                    $subject->activities()
+                        ->where('id', $activity['id'])
+                        ->update([
+                            'activity_name' => $activity['activity_name'],
+                            'full_marks' => $activity['full_marks'] ?? null,
+                            'pass_marks' => $activity['pass_marks'] ?? null,
+                        ]);
+                } else {
+                    // CREATE NEW
+                    $subject->activities()->create([
+                        'activity_name' => $activity['activity_name'],
+                        'full_marks' => $activity['full_marks'] ?? null,
+                        'pass_marks' => $activity['pass_marks'] ?? null,
+                    ]);
+                }
+            }
+        }
+    });
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Subject and activities updated successfully',
+        'data' => $subject->fresh('activities')
+    ], 200);
+}
 
     /**
      * Remove the specified resource from storage.
