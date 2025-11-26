@@ -66,18 +66,18 @@ class SubjectController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $domain,int $id)
+    public function show(string $domain, int $id)
     {
 
         // dd($id);
-        $subject = Subject::findOrFail($id);
+        $subject = Subject::with('activities')->findOrFail($id);
         return response()->json($subject);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $domain,  int $id)
+    public function update(Request $request, string $domain, int $id)
     {
         $subject = Subject::with('activities')->findOrFail($id);
 
@@ -99,7 +99,7 @@ class SubjectController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $domain,int $id)
+    public function destroy(string $domain, int $id)
     {
         $subject = Subject::findOrFail($id);
         $subject->delete();
@@ -132,81 +132,85 @@ class SubjectController extends Controller
 
 
     public function storeClassSubjectTeacher(Request $request)
-{
-    $request->validate([
-        'subject_id' => 'required|exists:subjects,id',
-        'assignments' => 'required|array',
-        'assignments.*.class_id' => 'required|exists:classes,id',
-        'assignments.*.teacher_id' => 'required|exists:teachers,id',
-    ]);
+    {
+        $request->validate([
+            'subject_id' => 'required|exists:subjects,id',
+            'assignments' => 'required|array',
+            'assignments.*.class_id' => 'required|exists:classes,id',
+            'assignments.*.teacher_id' => 'required|exists:teachers,id',
+        ]);
 
-    foreach ($request->assignments as $assign) {
-        \DB::table('class_subject_teacher')->updateOrInsert(
-            [
-                'subject_id' => $request->subject_id,
-                'class_id' => $assign['class_id'],
-            ],
-            ['teacher_id' => $assign['teacher_id'], 'updated_at' => now(), 'created_at' => now()]
-        );
-    }
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Subject assigned to classes successfully'
-    ]);
-}
-
-
-
-public function store(Request $request)
-{
-    $request->validate([
-        'name' => 'required|string|max:255|unique:subjects,name',
-        'subject_code' => 'nullable|string',
-        'theory_marks' => 'required|integer|min:0',
-        'practical_marks' => 'required|integer|min:0',
-        'teacher_id' => 'nullable|exists:users,id',
-
-        // NESTED VALIDATION
-        'activities' => 'nullable|array',
-        'activities.*.activity_name' => 'required|string|max:255',
-        'activities.*.full_marks' => 'nullable|integer|min:0',
-        'activities.*.pass_marks' => 'nullable|integer|min:0',
-    ]);
-
-    \DB::beginTransaction();
-
-    try {
-
-        // 1️⃣ Create Subject
-        $subject = Subject::create($request->only([
-            'name', 'subject_code', 'theory_marks', 'practical_marks', 'teacher_id'
-        ]));
-
-        // 2️⃣ Create Activities (if provided)
-        if ($request->has('activities')) {
-            $subject->activities()->createMany($request->activities);
+        foreach ($request->assignments as $assign) {
+            \DB::table('class_subject_teacher')->updateOrInsert(
+                [
+                    'subject_id' => $request->subject_id,
+                    'class_id' => $assign['class_id'],
+                ],
+                ['teacher_id' => $assign['teacher_id'], 'updated_at' => now(), 'created_at' => now()]
+            );
         }
-
-        \DB::commit();
 
         return response()->json([
             'status' => true,
-            'message' => 'Subject & activities created successfully',
-            'data' => $subject->load('activities')
-        ], 201);
-
-    } catch (\Exception $e) {
-
-        \DB::rollBack();
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Failed to create subject & activities',
-            'error' => $e->getMessage()
-        ], 500);
+            'message' => 'Subject assigned to classes successfully'
+        ]);
     }
-}
+
+
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255|unique:subjects,name',
+            'subject_code' => 'nullable|string',
+            'theory_marks' => 'required|integer|min:0',
+            'practical_marks' => 'required|integer|min:0',
+            'teacher_id' => 'nullable|exists:users,id',
+
+            // NESTED VALIDATION
+            'activities' => 'nullable|array',
+            'activities.*.activity_name' => 'required|string|max:255',
+            'activities.*.full_marks' => 'nullable|integer|min:0',
+            'activities.*.pass_marks' => 'nullable|integer|min:0',
+        ]);
+
+        \DB::beginTransaction();
+
+        try {
+
+            //  Create Subject
+            $subject = Subject::create($request->only([
+                'name',
+                'subject_code',
+                'theory_marks',
+                'practical_marks',
+                'teacher_id'
+            ]));
+
+            //  Create Activities (if provided)
+            if ($request->has('activities')) {
+                $subject->activities()->createMany($request->activities);
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Subject & activities created successfully',
+                'data' => $subject->load('activities')
+            ], 201);
+
+        } catch (\Exception $e) {
+
+            \DB::rollBack();
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to create subject & activities',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 
 }
