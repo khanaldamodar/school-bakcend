@@ -34,34 +34,34 @@ class SubjectController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
+    // public function store(Request $request)
+    // {
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:subjects,name',
-            "subject_code" => "nullable|string",
-            'theory_marks' => 'required|integer|min:0',
-            'practical_marks' => 'required|integer|min:0',
-            'teacher_id' => 'nullable|exists:users,id',
-        ]);
+    //     $validator = Validator::make($request->all(), [
+    //         'name' => 'required|string|max:255|unique:subjects,name',
+    //         "subject_code" => "nullable|string",
+    //         'theory_marks' => 'required|integer|min:0',
+    //         'practical_marks' => 'required|integer|min:0',
+    //         'teacher_id' => 'nullable|exists:users,id',
+    //     ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Validation Failed',
-                'error' => $validator->errors()
-            ], 422);
-        }
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Validation Failed',
+    //             'error' => $validator->errors()
+    //         ], 422);
+    //     }
 
-        $data = $validator->validated();
+    //     $data = $validator->validated();
 
-        $subject = Subject::create($data);
-        return response()->json([
-            'message' => 'Subject created successfully',
-            'data' => $subject
-        ], 201);
+    //     $subject = Subject::create($data);
+    //     return response()->json([
+    //         'message' => 'Subject created successfully',
+    //         'data' => $subject
+    //     ], 201);
 
-    }
+    // }
 
     /**
      * Display the specified resource.
@@ -155,5 +155,58 @@ class SubjectController extends Controller
         'message' => 'Subject assigned to classes successfully'
     ]);
 }
+
+
+
+public function store(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255|unique:subjects,name',
+        'subject_code' => 'nullable|string',
+        'theory_marks' => 'required|integer|min:0',
+        'practical_marks' => 'required|integer|min:0',
+        'teacher_id' => 'nullable|exists:users,id',
+
+        // NESTED VALIDATION
+        'activities' => 'nullable|array',
+        'activities.*.activity_name' => 'required|string|max:255',
+        'activities.*.full_marks' => 'nullable|integer|min:0',
+        'activities.*.pass_marks' => 'nullable|integer|min:0',
+    ]);
+
+    \DB::beginTransaction();
+
+    try {
+
+        // 1️⃣ Create Subject
+        $subject = Subject::create($request->only([
+            'name', 'subject_code', 'theory_marks', 'practical_marks', 'teacher_id'
+        ]));
+
+        // 2️⃣ Create Activities (if provided)
+        if ($request->has('activities')) {
+            $subject->activities()->createMany($request->activities);
+        }
+
+        \DB::commit();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Subject & activities created successfully',
+            'data' => $subject->load('activities')
+        ], 201);
+
+    } catch (\Exception $e) {
+
+        \DB::rollBack();
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to create subject & activities',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
 
 }
