@@ -314,10 +314,6 @@ class TeacherController extends Controller
             ], 500);
         }
     }
-
-
-
-
     public function destroy($domain, $id)
     {
         $teacher = Teacher::findOrFail($id);

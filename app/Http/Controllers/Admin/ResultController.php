@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\ExtraCurricularActivity;
 use App\Models\Admin\Result;
+use App\Models\Admin\ResultActivity;
 use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Student;
+use App\Models\Admin\Subject;
 use App\Models\Admin\Teacher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -385,71 +388,75 @@ class ResultController extends Controller
 
 
 
-    public function createResultByTeacher(Request $request)
-    {
-        $user = $request->user();
+    // public function createResultByTeacher(Request $request)
+    // {
+    //     $user = $request->user();
 
 
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'class_id' => 'required|exists:classes,id',
-            'exam_type' => 'nullable|string|max:255',
-            'exam_date' => 'nullable',
-            'results' => 'required|array',
-            'results.*.subject_id' => 'required|exists:subjects,id',
-            'results.*.marks_theory' => 'required|integer|min:0',
-            'results.*.marks_practical' => 'required|integer|min:0',
-        ]);
+    //     $validated = $request->validate([
+    //         'student_id' => 'required|exists:students,id',
+    //         'class_id' => 'required|exists:classes,id',
+    //         'exam_type' => 'nullable|string|max:255',
+    //         'exam_date' => 'nullable',
+    //         'results' => 'required|array',
+    //         'results.*.subject_id' => 'required|exists:subjects,id',
+    //         'results.*.marks_theory' => 'required|integer|min:0',
+    //         'results.*.marks_practical' => 'required|integer|min:0',
+    //     ]);
 
-        $teacher = Teacher::with('subjects')->where('user_id', $user->id)->firstOrFail();
-        // dd($teacher->subjects);
-        $savedResults = [];
+    //     $teacher = Teacher::with('subjects')->where('user_id', $user->id)->firstOrFail();
+    //     // dd($teacher->subjects);
+    //     $savedResults = [];
 
-        foreach ($validated['results'] as $resultData) {
-            $canAdd = true;
+    //     foreach ($validated['results'] as $resultData) {
+    //         $canAdd = true;
 
-            // if ($teacher->class_teacher_of && $teacher->class_teacher_of == $validated['class_id']) {
-            //     $canAdd = true;
-            // }
+    //         // if ($teacher->class_teacher_of && $teacher->class_teacher_of == $validated['class_id']) {
+    //         //     $canAdd = true;
+    //         // }
 
-            // if ($teacher->subjects->contains('id', $resultData['subject_id'])) {
-            //     $canAdd = true;
-            // }
+    //         // if ($teacher->subjects->contains('id', $resultData['subject_id'])) {
+    //         //     $canAdd = true;
+    //         // }
 
-            if (!$canAdd) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'You are not authorized to add result for subject ' . $resultData['subject_id']
-                ], 403);
-            }
+    //         if (!$canAdd) {
+    //             return response()->json([
+    //                 'status' => false,
+    //                 'message' => 'You are not authorized to add result for subject ' . $resultData['subject_id']
+    //             ], 403);
+    //         }
 
-            $subject = \App\Models\Admin\Subject::findOrFail($resultData['subject_id']);
-            $max_theory = $subject->theory_marks ?? 0;
-            $max_practical = $subject->practical_marks ?? 0;
+    //         $subject = \App\Models\Admin\Subject::findOrFail($resultData['subject_id']);
+    //         $max_theory = $subject->theory_marks ?? 0;
+    //         $max_practical = $subject->practical_marks ?? 0;
 
-            $marks_obtained = $resultData['marks_theory'] + $resultData['marks_practical'];
-            $max_marks = $max_theory + $max_practical;
-            $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
+    //         $marks_obtained = $resultData['marks_theory'] + $resultData['marks_practical'];
+    //         $max_marks = $max_theory + $max_practical;
+    //         $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
 
-            $savedResults[] = Result::create([
-                'student_id' => $validated['student_id'],
-                'class_id' => $validated['class_id'],
-                'subject_id' => $resultData['subject_id'],
-                'teacher_id' => $teacher->id,
-                'marks_theory' => $resultData['marks_theory'],
-                'marks_practical' => $resultData['marks_practical'],
-                'gpa' => $gpa,
-                'exam_type' => $validated['exam_type'] ?? null,
-                'exam_date' => $validated['exam_date'] ?? null,
-            ]);
-        }
+    //         $savedResults[] = Result::create([
+    //             'student_id' => $validated['student_id'],
+    //             'class_id' => $validated['class_id'],
+    //             'subject_id' => $resultData['subject_id'],
+    //             'teacher_id' => $teacher->id,
+    //             'marks_theory' => $resultData['marks_theory'],
+    //             'marks_practical' => $resultData['marks_practical'],
+    //             'gpa' => $gpa,
+    //             'exam_type' => $validated['exam_type'] ?? null,
+    //             'exam_date' => $validated['exam_date'] ?? null,
+    //         ]);
+    //     }
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Results added successfully with GPA',
-            'data' => $savedResults
-        ], 201);
-    }
+    //     return response()->json([
+    //         'status' => true,
+    //         'message' => 'Results added successfully with GPA',
+    //         'data' => $savedResults
+    //     ], 201);
+    // }
+
+
+
+
 
     // To view the result by teacher
     public function resultsByTeacher(Request $request, $domain, $teacherId)
@@ -560,7 +567,7 @@ class ResultController extends Controller
                     'marks_practical' => $practicalMarks,
                     'total_marks' => $subjectTotal,
                     'max_marks' => $subjectMax,
-                    "exam_type"=> $examTerm
+                    "exam_type" => $examTerm
                 ];
             }
 
@@ -568,7 +575,7 @@ class ResultController extends Controller
 
             $ledger[] = [
                 'student_id' => $student->id,
-                'class'=> $className,
+                'class' => $className,
                 'student_name' => $student->first_name . ' ' . $student->last_name,
                 'total_marks' => $totalMarks,
                 'max_marks' => $maxMarks,
@@ -709,7 +716,7 @@ class ResultController extends Controller
         $resultsData = [];
 
         foreach ($validated['results'] as $data) {
-            $subject = \App\Models\Admin\Subject::find($data['subject_id']);
+            $subject = Subject::find($data['subject_id']);
 
             $max_theory = $subject->theory_marks ?? 0;
             $max_practical = $subject->practical_marks ?? 0;
@@ -744,6 +751,113 @@ class ResultController extends Controller
 
 
 
+
+    public function createResultByTeacher(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'class_id' => 'required|exists:classes,id',
+            'exam_type' => 'nullable|string|max:255',
+            'exam_date' => 'nullable|date',
+
+            'results' => 'required|array',
+            'results.*.subject_id' => 'required|exists:subjects,id',
+            'results.*.marks_theory' => 'required|integer|min:0',
+            'results.*.marks_practical' => 'required|integer|min:0',
+
+            // EXTRA ACTIVITY VALIDATION
+            'results.*.activities' => 'nullable|array',
+            'results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
+            'results.*.activities.*.marks' => 'required|integer|min:0',
+        ]);
+
+        $teacher = Teacher::with('subjects')->where('user_id', $user->id)->firstOrFail();
+
+        DB::beginTransaction();
+
+        try {
+
+            foreach ($validated['results'] as $resultData) {
+
+                // AUTHORIZATION CHECK
+                if (
+                    !$teacher->subjects->contains('id', $resultData['subject_id']) &&
+                    $teacher->class_teacher_of != $validated['class_id']
+                ) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Unauthorized to add marks for this subject'
+                    ], 403);
+                }
+
+                // SUBJECT MARKS
+                $subject = Subject::findOrFail($resultData['subject_id']);
+
+                $maxSubjectMarks = ($subject->theory_marks ?? 0) + ($subject->practical_marks ?? 0);
+                $obtainedSubjectMarks = $resultData['marks_theory'] + $resultData['marks_practical'];
+
+                // CREATE RESULT
+                $result = Result::create([
+                    'student_id' => $validated['student_id'],
+                    'class_id' => $validated['class_id'],
+                    'subject_id' => $resultData['subject_id'],
+                    'teacher_id' => $teacher->id,
+                    'marks_theory' => $resultData['marks_theory'],
+                    'marks_practical' => $resultData['marks_practical'],
+                    'exam_type' => $validated['exam_type'] ?? null,
+                    'exam_date' => $validated['exam_date'] ?? null,
+                    'gpa' => 0 // UPDATE AFTER ACTIVITIES
+                ]);
+
+                $activityMarks = 0;
+                $activityMaxMarks = 0;
+
+                // SAVE ACTIVITY MARKS
+                if (!empty($resultData['activities'])) {
+                    foreach ($resultData['activities'] as $activityData) {
+
+                        $activity = ExtraCurricularActivity::findOrFail($activityData['activity_id']);
+
+                        ResultActivity::create([
+                            'result_id' => $result->id,
+                            'activity_id' => $activityData['activity_id'],
+                            'marks' => $activityData['marks']
+                        ]);
+
+                        $activityMarks += $activityData['marks'];
+                        $activityMaxMarks += $activity->full_marks ?? 0;
+                    }
+                }
+
+                // GPA RE-CALCULATION
+                $totalObtained = $obtainedSubjectMarks + $activityMarks;
+                $totalMax = $maxSubjectMarks + $activityMaxMarks;
+
+                $gpa = $totalMax > 0 ? round(($totalObtained / $totalMax) * 4, 2) : 0;
+
+                $result->update(['gpa' => $gpa]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Result with activities saved successfully'
+            ], 201);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to store result',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 
 

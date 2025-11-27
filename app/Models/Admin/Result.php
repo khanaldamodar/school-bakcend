@@ -42,4 +42,11 @@ class Result extends Model
     {
         return $this->belongsTo(Student::class, 'student_id');
     }
+
+public function activities()
+{
+    return $this->hasMany(ResultActivity::class);
+}
+
+
 }
