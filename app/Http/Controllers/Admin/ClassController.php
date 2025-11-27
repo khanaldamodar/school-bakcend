@@ -11,7 +11,13 @@ class ClassController extends Controller
 {
     public function index()
     {
-        $classes = SchoolClass::with('subjects:id,name')->get();
+        $classes = SchoolClass::select('id', 'name')  
+    ->with([
+        'subjects:id,name,theory_marks,practical_marks',
+        'subjects.activities:id,subject_id,activity_name,full_marks,pass_marks'
+    ])
+    ->get();
+
 
         return response()->json([
             'status' => true,
@@ -71,7 +77,7 @@ class ClassController extends Controller
 
     public function show($domain, $id)
     {
-        $schoolClass = SchoolClass::with('subjects:id,name')->findOrFail($id);
+        $schoolClass = SchoolClass::with('subjects:id,name.activities')->findOrFail($id);
 
         return response()->json([
             'status' => true,
