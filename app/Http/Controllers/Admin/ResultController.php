@@ -781,6 +781,19 @@ class ResultController extends Controller
 
             foreach ($validated['results'] as $resultData) {
 
+                $existingResult = Result::where('student_id', $validated['student_id'])
+                    ->where('class_id', $validated['class_id'])
+                    ->where('subject_id', $resultData['subject_id'])
+                    ->where('exam_type', $validated['exam_type'])
+                    ->first();
+
+                if ($existingResult) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => "Result already exists for this student, subject, and exam type."
+                    ], 409); // 409 Conflict
+                }
+
                 // AUTHORIZATION CHECK
                 // if (
                 //     !$teacher->subjects->contains('id', $resultData['subject_id']) ||
