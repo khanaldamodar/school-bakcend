@@ -782,15 +782,15 @@ class ResultController extends Controller
             foreach ($validated['results'] as $resultData) {
 
                 // AUTHORIZATION CHECK
-                if (
-                    !$teacher->subjects->contains('id', $resultData['subject_id']) &&
-                    $teacher->class_teacher_of != $validated['class_id']
-                ) {
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'Unauthorized to add marks for this subject'
-                    ], 403);
-                }
+                // if (
+                //     !$teacher->subjects->contains('id', $resultData['subject_id']) ||
+                //     $teacher->class_teacher_of != $validated['class_id']
+                // ) {
+                //     return response()->json([
+                //         'status' => false,
+                //         'message' => 'Unauthorized to add marks for this subject'
+                //     ], 403);
+                // }
 
                 // SUBJECT MARKS
                 $subject = Subject::findOrFail($resultData['subject_id']);
@@ -858,12 +858,5 @@ class ResultController extends Controller
             ], 500);
         }
     }
-
-
-
-
-
-
-
 
 }
