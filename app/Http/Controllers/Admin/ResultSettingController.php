@@ -38,7 +38,8 @@ class ResultSettingController extends Controller
             'setting_id' => 'required|exists:settings,id',
             'total_terms' => 'required|integer|min:1|max:12',
             'calculation_method' => 'required|in:simple,weighted',
-            'result_type' => 'required|in:gpa,percentage'
+            'result_type' => 'required|in:gpa,percentage',
+            'term_weights' => 'nullable|array'
         ]);
 
         // Prevent duplicate record for same setting
@@ -76,20 +77,38 @@ class ResultSettingController extends Controller
         $validated = $request->validate([
             'total_terms' => 'sometimes|integer|min:1|max:12',
             'calculation_method' => 'sometimes|in:simple,weighted',
-            'result_type' => 'sometimes|in:gpa,percentage'
+            'result_type' => 'sometimes|in:gpa,percentage',
+            'term_weights' => 'nullable|array'
         ]);
+
+        //  If calculation_method is not weighted, remove term_weights
+        if (
+            isset($validated['calculation_method']) &&
+            $validated['calculation_method'] !== 'weighted'
+        ) {
+            $validated['term_weights'] = null;
+        }
+
+        //  If weighted, confirm weights sum to 100
+        if (
+            isset($validated['calculation_method']) &&
+            $validated['calculation_method'] === 'weighted' &&
+            isset($validated['term_weights'])
+        ) {
+            if (array_sum($validated['term_weights']) != 100) {
+                return response()->json([
+                    'message' => 'Total weight must be exactly 100%'
+                ], 422);
+            }
+        }
 
         $resultSetting->update($validated);
 
         return response()->json([
             'status' => true,
             'message' => 'Result setting updated successfully',
-            'data' => $resultSetting
+            'data' => $resultSetting->fresh()
         ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    
 }

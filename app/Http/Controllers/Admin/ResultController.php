@@ -873,4 +873,64 @@ class ResultController extends Controller
 
     }
 
+    public function getStudentResults(Request $request,$domain, $studentId, $classId, $examType = null)
+    {
+        // Validate input
+        $request->validate([
+            'student_id' => 'exists:students,id',
+            'class_id' => 'exists:classes,id',
+            'exam_type' => 'nullable|string|max:255',
+        ]);
+
+        // Fetch results with subject, teacher, and activities
+        $results = Result::with([
+            'subject:id,name,theory_marks,practical_marks',
+            'teacher:id,name',
+            'activities.activity:id,activity_name,full_marks'
+        ])
+            ->where('student_id', $studentId)
+            ->where('class_id', $classId)
+            ->when($examType, fn($q) => $q->where('exam_type', $examType))
+            ->get();
+
+        if ($results->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No results found for this student.'
+            ], 404);
+        }
+
+        // Transform results
+        $data = $results->map(function ($result) {
+            $activityMarks = $result->activities->sum('marks');
+            $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+
+            return [
+                'result_id' => $result->id,
+                'subject' => $result->subject->name,
+                'marks_theory' => $result->marks_theory,
+                'marks_practical' => $result->marks_practical,
+                'total_marks_obtained' => $result->marks_theory + $result->marks_practical + $activityMarks,
+                'total_max_marks' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
+                'gpa' => $result->gpa,
+                'exam_type' => $result->exam_type,
+                'exam_date' => $result->exam_date,
+                'activities' => $result->activities->map(fn($a) => [
+                    'activity_name' => $a->activity->name,
+                    'marks_obtained' => $a->marks,
+                    'full_marks' => $a->activity->full_marks
+                ])
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'student_id' => $studentId,
+            'class_id' => $classId,
+            'exam_type' => $examType,
+            'results' => $data
+        ]);
+    }
+
+
 }
