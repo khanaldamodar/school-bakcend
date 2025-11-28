@@ -15,7 +15,7 @@ class SettingController extends Controller
     public function index()
     {
 
-        $settings = Setting::first();
+        $settings = Setting::with('resultSetting')->first();
         // dd($settings);
 
         if (!$settings) {

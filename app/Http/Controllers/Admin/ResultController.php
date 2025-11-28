@@ -80,7 +80,7 @@ class ResultController extends Controller
                 'exam_date' => 'nullable',
             ]);
 
-            $subject = \App\Models\Admin\Subject::findOrFail($validated['subject_id']);
+            $subject = Subject::findOrFail($validated['subject_id']);
             $max_theory = $subject->theory_marks ?? 0;
             $max_practical = $subject->practical_marks ?? 0;
 
@@ -870,6 +870,7 @@ class ResultController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+
     }
 
 }

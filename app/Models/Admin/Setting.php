@@ -45,4 +45,9 @@ class Setting extends Model
     });
 }
 
+public function resultSetting()
+    {
+        return $this->hasOne(ResultSetting::class, 'setting_id');
+    }
+
 }

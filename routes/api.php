@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ExtraCurricularActivityController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ResultController;
+use App\Http\Controllers\Admin\ResultSettingController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SMSController;
 use App\Http\Controllers\Admin\StudentController;
@@ -60,6 +61,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // ? To update the settings of the school by admin 
     Route::put('/tenants/{domain}/settings', [SettingController::class, 'update']);
+    Route::post('/tenants/{domain}/result-settings', [ResultSettingController::class, 'store']);
+    Route::put('/tenants/{domain}/result-settings/{id}', [ResultSettingController::class, 'update']);
 
 
     // ?To create the subjects 
@@ -108,12 +111,13 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::apiResource('tenants/{domain}/notices', NoticeController::class)->except('index', 'show');
 
     // To get te class While Sending the message. 
-    Route::get('tenants/{domain}/sms-class',[SMSController::class, 'getClass']);
+    Route::get('tenants/{domain}/sms-class', [SMSController::class, 'getClass']);
 });
 
 // ?For the Teachers and admin
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(function () {
     Route::post('tenants/{domain}/teachers/me', [TeacherController::class, 'me']);
+    Route::get('tenants/{domain}/result-settings', [ResultSettingController::class, 'index']);
 
     Route::get('tenants/{domain}/classes/{id}', [ClassController::class, 'show']);
     Route::get('tenants/{domain}/classes', [ClassController::class, 'index']);
@@ -180,7 +184,7 @@ Route::middleware(['tenant'])->group(function () {
     //? Report api for school
     Route::get('tenants/{domain}/reports', [ReportController::class, 'getReports']);
     Route::post('tenants/{domain}/send-sms', [SMSController::class, 'send']);
-    Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class,'sendToTeachers']);
+    Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class, 'sendToTeachers']);
 });
 
 // ?Register New Government account
