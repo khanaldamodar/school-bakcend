@@ -933,77 +933,77 @@ class ResultController extends Controller
 
 
     public function getWholeClassResults(Request $request, $domain, $classId)
-{
-    // Validate class
-    if (!\App\Models\Admin\SchoolClass::where('id', $classId)->exists()) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Class not found'
-        ], 404);
-    }
+    {
+        // Validate class
+        if (!\App\Models\Admin\SchoolClass::where('id', $classId)->exists()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Class not found'
+            ], 404);
+        }
 
-    // Optional filtering by exam type
-    $examType = $request->query('exam_type');
+        // Optional filtering by exam type
+        $examType = $request->query('exam_type');
 
-    // Fetch class results
-    $results = Result::with([
-        'student:id,name,roll_no',
-        'subject:id,first_name,theory_marks,practical_marks',
-        'activities.activity:id,name,full_marks'
-    ])
-    ->where('class_id', $classId)
-    ->when($examType, function ($q) use ($examType) {
-        $q->where('exam_type', $examType);
-    })
-    ->orderBy('student_id')
-    ->get();
+        // Fetch class results
+        $results = Result::with([
+            'student:id,first_name,last_name,roll_number',
+            'subject:id,name,theory_marks,practical_marks',
+            'activities.activity:id,activity_name,full_marks'
+        ])
+            ->where('class_id', $classId)
+            ->when($examType, function ($q) use ($examType) {
+                $q->where('exam_type', $examType);
+            })
+            ->orderBy('student_id')
+            ->get();
 
-    if ($results->isEmpty()) {
-        return response()->json([
-            'status' => false,
-            'message' => 'No results found for this class'
-        ], 404);
-    }
+        if ($results->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No results found for this class'
+            ], 404);
+        }
 
-    // Group results by student
-    $grouped = $results->groupBy('student_id')->map(function ($studentResults) {
+        // Group results by student
+        $grouped = $results->groupBy('student_id')->map(function ($studentResults) {
 
-        $student = $studentResults->first()->student;
+            $student = $studentResults->first()->student;
 
-        $subjects = $studentResults->map(function ($result) {
+            $subjects = $studentResults->map(function ($result) {
 
-            $activityMarks = $result->activities->sum('marks');
-            $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+                $activityMarks = $result->activities->sum('marks');
+                $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+
+                return [
+                    'subject' => $result->subject->name,
+                    'marks_theory' => $result->marks_theory,
+                    'marks_practical' => $result->marks_practical,
+                    'activity_marks' => $activityMarks,
+                    'total_marks' => $result->marks_theory + $result->marks_practical + $activityMarks,
+                    'max_marks' =>
+                    ($result->subject->theory_marks ?? 0) +
+                        ($result->subject->practical_marks ?? 0) +
+                        $activityMaxMarks,
+                    'gpa' => $result->gpa
+                ];
+            });
 
             return [
-                'subject' => $result->subject->name,
-                'marks_theory' => $result->marks_theory,
-                'marks_practical' => $result->marks_practical,
-                'activity_marks' => $activityMarks,
-                'total_marks' => $result->marks_theory + $result->marks_practical + $activityMarks,
-                'max_marks' =>
-                    ($result->subject->theory_marks ?? 0) +
-                    ($result->subject->practical_marks ?? 0) +
-                    $activityMaxMarks,
-                'gpa' => $result->gpa
+                'student_id' => $student->id,
+                'student_name' => $student->first_name . ' ' . $student->last_name,
+                'roll_no' => $student->roll_number,
+                'subjects' => $subjects
             ];
-        });
+        })->values();
 
-        return [
-            'student_id' => $student->id,
-            'student_name' => $student->name,
-            'roll_no' => $student->roll_no,
-            'subjects' => $subjects
-        ];
-    })->values();
-
-    return response()->json([
-        'status' => true,
-        'class_id' => $classId,
-        'exam_type' => $examType,
-        'students' => $grouped
-    ]);
-}
+        return response()->json([
+            'status' => true,
+            'class_id' => $classId,
+            'exam_type' => $examType,
+            'students' => $grouped
+        ]);
+    }
 
 
 

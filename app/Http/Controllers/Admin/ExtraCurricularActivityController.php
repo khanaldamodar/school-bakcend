@@ -18,6 +18,8 @@ class ExtraCurricularActivityController extends Controller
             'pass_marks' => 'nullable|integer|min:0',
         ]);
 
+
+
         $activity = ExtraCurricularActivity::create($request->all());
 
         return response()->json([
