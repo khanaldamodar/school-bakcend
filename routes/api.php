@@ -40,6 +40,12 @@ Route::prefix('superadmin/school')->middleware(['auth:sanctum'])->group(function
 });
 
 
+
+Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'])->group(function () {
+    Route::get('tenants/{domain}/students/result', [ResultController::class, 'studentResult']);
+});
+
+
 //? For School Individuals 
 // ?To Register, login and logut ROutes for school users
 Route::post('/tenants/{domain}/register', [CreateUserController::class, 'register'])->middleware('tenant');
@@ -94,9 +100,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     //? To filter the results of students based in class and the studentId and classId
     Route::get('tenants/{domain}/students/results/class/{classId}', [ResultController::class, 'resultByClass']);
-    // Route::get('tenants/{domain}/students/getresults/{studentId}', [ResultController::class, 'studentResult']);
-    // routes/api.php
-    // Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'studentResult']);
+    
+    // Get full result for a specific student (Admin/Teacher)
+    // Route::get('tenants/{domain}/students/{studentId}/full-result', [ResultController::class, 'studentResult']);
 
 
 

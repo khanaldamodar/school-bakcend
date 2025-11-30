@@ -335,13 +335,26 @@ class ResultController extends Controller
         // get the logged in user
         $user = auth()->user();
 
-        // find student based on user_id
-        $student = Student::with('class:id,name')
-            ->where('user_id', $user->id)
-            ->firstOrFail();
+     
+
+        try {
+            // find student based on user_id
+            $student = Student::with('class:id,name')
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Student record not found for the logged in user.'
+            ], 404);
+        }
 
         // fetch all results including past classes
-        $results = Result::with('subject:id,name,theory_marks,practical_marks')
+        $results = Result::with([
+            'subject:id,name,theory_marks,practical_marks',
+            'activities.activity:id,activity_name,full_marks'
+        ])
             ->where('student_id', $student->id) // use student.id, not user_id
             ->get()
             ->groupBy(['class_id', 'exam_type']); // Group by class + exam
@@ -355,14 +368,26 @@ class ResultController extends Controller
             foreach ($exams as $examType => $subjects) {
                 // Format individual subjects
                 $formattedResults[$className][$examType] = $subjects->map(function ($result) {
+                    $activityMarks = $result->activities->sum('marks');
+                    $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+
                     return [
                         'subject_name' => $result->subject->name,
                         'marks_theory' => $result->marks_theory,
                         'max_theory' => $result->subject->theory_marks,
                         'marks_practical' => $result->marks_practical,
                         'max_practical' => $result->subject->practical_marks,
+                        'activity_marks' => $activityMarks,
+                        'activity_max_marks' => $activityMaxMarks,
+                        'total_obtained' => $result->marks_theory + $result->marks_practical + $activityMarks,
+                        'total_max' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
                         'gpa' => $result->gpa,
                         'exam_type' => $result->exam_type,
+                        'activities' => $result->activities->map(fn($a) => [
+                            'activity_name' => $a->activity->activity_name,
+                            'marks_obtained' => $a->marks,
+                            'full_marks' => $a->activity->full_marks
+                        ])
                     ];
                 });
 
