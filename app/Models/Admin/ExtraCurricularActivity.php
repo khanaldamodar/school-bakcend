@@ -8,6 +8,7 @@ class ExtraCurricularActivity extends Model
 {
     protected $fillable = [
         'subject_id',
+        'class_id',
         'activity_name',
         'full_marks',
         'pass_marks',
@@ -18,4 +19,8 @@ class ExtraCurricularActivity extends Model
         return $this->belongsTo(Subject::class);
     }
 
+    public function schoolClass()
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
 }

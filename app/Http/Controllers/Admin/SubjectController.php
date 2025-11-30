@@ -166,7 +166,9 @@ class SubjectController extends Controller
 
     public function getSubjectsByClass($domain, $classId)
     {
-        $schoolClass = SchoolClass::with('subjects.activities')->find($classId);
+        $schoolClass = SchoolClass::with(['subjects.activities' => function ($query) use ($classId) {
+            $query->where('class_id', $classId);
+        }])->find($classId);
 
         if (!$schoolClass) {
             return response()->json([

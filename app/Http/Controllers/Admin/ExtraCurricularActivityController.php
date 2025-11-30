@@ -12,6 +12,7 @@ class ExtraCurricularActivityController extends Controller
     {
         $request->validate([
             'subject_id' => 'required|exists:subjects,id',
+            'class_id' => 'nullable|exists:classes,id',
             'activity_name' => 'required|string|max:255',
             'full_marks' => 'nullable|integer|min:0',
             'pass_marks' => 'nullable|integer|min:0',
@@ -26,9 +27,15 @@ class ExtraCurricularActivityController extends Controller
         ], 201);
     }
 
-    public function getActivities($subjectId)
+    public function getActivities(Request $request, $subjectId)
     {
-        $activities = ExtraCurricularActivity::where('subject_id', $subjectId)->get();
+        $query = ExtraCurricularActivity::where('subject_id', $subjectId);
+
+        if ($request->has('class_id')) {
+            $query->where('class_id', $request->class_id);
+        }
+
+        $activities = $query->get();
 
         return response()->json([
             'status' => true,
