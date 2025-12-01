@@ -939,7 +939,7 @@ class ResultController extends Controller
                 'exam_type' => $result->exam_type,
                 'exam_date' => $result->exam_date,
                 'activities' => $result->activities->map(fn($a) => [
-                    'activity_name' => $a->activity->name,
+                    'activity_name' => $a->activity->activity_name,
                     'marks_obtained' => $a->marks,
                     'full_marks' => $a->activity->full_marks
                 ])
@@ -973,7 +973,7 @@ class ResultController extends Controller
         $results = Result::with([
             'student:id,first_name,last_name,roll_number',
             'subject:id,name,theory_marks,practical_marks',
-            'activities.activity:id,activity_name,full_marks'
+            'activities.activity:id,activity_name,full_marks,pass_marks'
         ])
             ->where('class_id', $classId)
             ->when($examType, function ($q) use ($examType) {
@@ -1009,7 +1009,13 @@ class ResultController extends Controller
                     ($result->subject->theory_marks ?? 0) +
                         ($result->subject->practical_marks ?? 0) +
                         $activityMaxMarks,
-                    'gpa' => $result->gpa
+                    'gpa' => $result->gpa,
+                    'activities' => $result->activities->map(fn($a) => [
+                        'activity_name' => $a->activity->activity_name,
+                        'marks_obtained' => $a->marks,
+                        'full_marks' => $a->activity->full_marks,
+                        'pass_marks' => $a->activity->pass_marks
+                    ])
                 ];
             });
 

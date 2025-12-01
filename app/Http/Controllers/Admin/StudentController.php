@@ -70,7 +70,7 @@ class StudentController extends Controller
             'is_disabled' => 'nullable|boolean',
             'is_tribe' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
-            'address' => 'string',
+            'address' => 'nullable|string',
             'image' => 'nullable|file|image|max:2048',
             'class_id' => 'required|exists:classes,id',
             'roll_number' => 'nullable|string|max:50',
