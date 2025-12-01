@@ -817,11 +817,9 @@ class ResultController extends Controller
                     ->where('exam_type', $validated['exam_type'])
                     ->exists();
 
+
                 if ($exists) {
-                    return response()->json([
-                        'status' => false,
-                        'message' => 'Result already exists for some students and subjects.'
-                    ], 409);
+                    throw new \Exception("Result already exists for some students and subjects.");
                 }
 
                 // SUBJECT MARKS
@@ -842,6 +840,7 @@ class ResultController extends Controller
                     'exam_date' => $validated['exam_date'] ?? null,
                     'gpa' => 0
                 ]);
+                
 
                 $activityMarks = 0;
                 $activityMax = 0;
