@@ -40,7 +40,6 @@ Route::prefix('superadmin/school')->middleware(['auth:sanctum'])->group(function
 });
 
 
-
 Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'])->group(function () {
     Route::get('tenants/{domain}/students/result', [ResultController::class, 'studentResult']);
 });
@@ -144,6 +143,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     Route::get('tenants/{domain}/classes/{classId}/subjects', [SubjectController::class, 'getSubjectsByClass']);
     Route::post('tenants/{domain}/class-subjects', [SubjectController::class, 'storeClassSubjectTeacher']);
+    Route::get('tenants/{domain}/class-subjects-teacher', [SubjectController::class, 'getClassSubjectTeacher']);
 
 
     //? To view the result for the teachers 

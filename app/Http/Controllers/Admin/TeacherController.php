@@ -392,15 +392,4 @@ class TeacherController extends Controller
         ]);
     }
 
-
-
-
-
-
-
-
-
-
-
-
 }

@@ -80,74 +80,77 @@ class SubjectController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, string $domain, int $id)
-{
-    $subject = Subject::with('activities')->findOrFail($id);
+    {
+        $subject = Subject::with('activities')->findOrFail($id);
 
-    $request->validate([
-        'name' => 'sometimes|string|max:255|unique:subjects,name,' . $id,
-        'theory_marks' => 'sometimes|integer|min:0',
-        'practical_marks' => 'sometimes|integer|min:0',
-        'teacher_id' => 'nullable|exists:users,id',
+        $request->validate([
+            'name' => 'sometimes|string|max:255|unique:subjects,name,' . $id,
+            'theory_marks' => 'sometimes|integer|min:0',
+            'practical_marks' => 'sometimes|integer|min:0',
+            'teacher_id' => 'nullable|exists:users,id',
 
-        // ACTIVITY VALIDATION
-        'activities' => 'nullable|array',
-        'activities.*.id' => 'nullable|exists:extra_curricular_activities,id',
-        'activities.*.activity_name' => 'required|string|max:255',
-        'activities.*.full_marks' => 'nullable|integer|min:0',
-        'activities.*.pass_marks' => 'nullable|integer|min:0',
-    ]);
+            // ACTIVITY VALIDATION
+            'activities' => 'nullable|array',
+            'activities.*.id' => 'nullable|exists:extra_curricular_activities,id',
+            'activities.*.activity_name' => 'required|string|max:255',
+            'activities.*.full_marks' => 'nullable|integer|min:0',
+            'activities.*.pass_marks' => 'nullable|integer|min:0',
+        ]);
 
-    DB::transaction(function () use ($request, $subject) {
+        DB::transaction(function () use ($request, $subject) {
 
-        // UPDATE SUBJECT
-        $subject->update($request->only([
-            'name', 'theory_marks', 'practical_marks', 'teacher_id'
-        ]));
+            // UPDATE SUBJECT
+            $subject->update($request->only([
+                'name',
+                'theory_marks',
+                'practical_marks',
+                'teacher_id'
+            ]));
 
-        if ($request->has('activities')) {
+            if ($request->has('activities')) {
 
-            $existingIds = $subject->activities->pluck('id')->toArray();
-            $incomingIds = collect($request->activities)
-                ->pluck('id')
-                ->filter()
-                ->toArray();
+                $existingIds = $subject->activities->pluck('id')->toArray();
+                $incomingIds = collect($request->activities)
+                    ->pluck('id')
+                    ->filter()
+                    ->toArray();
 
-            // DELETE REMOVED ACTIVITIES
-            $deleteIds = array_diff($existingIds, $incomingIds);
-            if (!empty($deleteIds)) {
-                \App\Models\Admin\ExtraCurricularActivity::whereIn('id', $deleteIds)->delete();
-            }
+                // DELETE REMOVED ACTIVITIES
+                $deleteIds = array_diff($existingIds, $incomingIds);
+                if (!empty($deleteIds)) {
+                    \App\Models\Admin\ExtraCurricularActivity::whereIn('id', $deleteIds)->delete();
+                }
 
-            // UPDATE OR CREATE ACTIVITIES
-            foreach ($request->activities as $activity) {
+                // UPDATE OR CREATE ACTIVITIES
+                foreach ($request->activities as $activity) {
 
-                if (isset($activity['id'])) {
-                    // UPDATE
-                    $subject->activities()
-                        ->where('id', $activity['id'])
-                        ->update([
+                    if (isset($activity['id'])) {
+                        // UPDATE
+                        $subject->activities()
+                            ->where('id', $activity['id'])
+                            ->update([
+                                'activity_name' => $activity['activity_name'],
+                                'full_marks' => $activity['full_marks'] ?? null,
+                                'pass_marks' => $activity['pass_marks'] ?? null,
+                            ]);
+                    } else {
+                        // CREATE NEW
+                        $subject->activities()->create([
                             'activity_name' => $activity['activity_name'],
                             'full_marks' => $activity['full_marks'] ?? null,
                             'pass_marks' => $activity['pass_marks'] ?? null,
                         ]);
-                } else {
-                    // CREATE NEW
-                    $subject->activities()->create([
-                        'activity_name' => $activity['activity_name'],
-                        'full_marks' => $activity['full_marks'] ?? null,
-                        'pass_marks' => $activity['pass_marks'] ?? null,
-                    ]);
+                    }
                 }
             }
-        }
-    });
+        });
 
-    return response()->json([
-        'status' => true,
-        'message' => 'Subject and activities updated successfully',
-        'data' => $subject->fresh('activities')
-    ], 200);
-}
+        return response()->json([
+            'status' => true,
+            'message' => 'Subject and activities updated successfully',
+            'data' => $subject->fresh('activities')
+        ], 200);
+    }
 
     /**
      * Remove the specified resource from storage.
@@ -166,9 +169,11 @@ class SubjectController extends Controller
 
     public function getSubjectsByClass($domain, $classId)
     {
-        $schoolClass = SchoolClass::with(['subjects.activities' => function ($query) use ($classId) {
-            $query->where('class_id', $classId);
-        }])->find($classId);
+        $schoolClass = SchoolClass::with([
+            'subjects.activities' => function ($query) use ($classId) {
+                $query->where('class_id', $classId);
+            }
+        ])->find($classId);
 
         if (!$schoolClass) {
             return response()->json([
@@ -210,6 +215,46 @@ class SubjectController extends Controller
             'message' => 'Subject assigned to classes successfully'
         ]);
     }
+
+    public function getClassSubjectTeacher(Request $request)
+    {
+        $query = \DB::table('class_subject_teacher as cst')
+            ->join('subjects as s', 'cst.subject_id', '=', 's.id')
+            ->join('classes as c', 'cst.class_id', '=', 'c.id')
+            ->join('teachers as t', 'cst.teacher_id', '=', 't.id')
+            ->select(
+                'cst.id',
+                'cst.subject_id',
+                's.name as subject_name',
+                'cst.class_id',
+                'c.name as class_name',
+                'cst.teacher_id',
+                't.name as teacher_name',
+                'cst.updated_at',
+                'cst.created_at'
+            );
+
+        // Optional Filtering
+        if ($request->has('subject_id')) {
+            $query->where('cst.subject_id', $request->subject_id);
+        }
+
+        if ($request->has('class_id')) {
+            $query->where('cst.class_id', $request->class_id);
+        }
+
+        if ($request->has('teacher_id')) {
+            $query->where('cst.teacher_id', $request->teacher_id);
+        }
+
+        $data = $query->get();
+
+        return response()->json([
+            'status' => true,
+            'data' => $data
+        ]);
+    }
+
 
 
 
