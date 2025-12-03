@@ -9,35 +9,35 @@ use Illuminate\Support\Facades\Validator;
 
 class ClassController extends Controller
 {
-    
-  public function index()
-{
-    $classes = SchoolClass::select('id', 'name', 'section')
-        ->with([
-            'subjects' => function ($query) {
-                $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
-            },
-            'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
-        ])
-        ->get();
 
-    // Filter activities by class_id
-    $classes->each(function ($class) {
-        $class->subjects->each(function ($subject) use ($class) {
-            $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
-                return $activity->class_id == $class->id;
-            })->values();
-            
-            $subject->setRelation('activities', $filteredActivities);
+    public function index()
+    {
+        $classes = SchoolClass::select('id', 'name', 'section')
+            ->with([
+                'subjects' => function ($query) {
+                    $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
+                },
+                'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
+            ])
+            ->get();
+
+        // Filter activities by class_id
+        $classes->each(function ($class) {
+            $class->subjects->each(function ($subject) use ($class) {
+                $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
+                    return $activity->class_id == $class->id;
+                })->values();
+
+                $subject->setRelation('activities', $filteredActivities);
+            });
         });
-    });
 
-    return response()->json([
-        'status' => true,
-        'message' => 'Classes fetched successfully',
-        'data' => $classes
-    ]);
-}
+        return response()->json([
+            'status' => true,
+            'message' => 'Classes fetched successfully',
+            'data' => $classes
+        ]);
+    }
 
     public function store(Request $request, $domain)
     {
@@ -91,7 +91,7 @@ class ClassController extends Controller
                 'subjects:id,name,theory_marks,practical_marks',
                 'subjects.activities' => function ($query) use ($id) {
                     $query->select('id', 'subject_id', 'class_id', 'activity_name', 'full_marks', 'pass_marks')
-                          ->where('class_id', $id);
+                        ->where('class_id', $id);
                 }
             ])->findOrFail($id);
 
@@ -106,21 +106,29 @@ class ClassController extends Controller
         $schoolClass = SchoolClass::findOrFail($id);
 
         $data = $request->validate([
-            'name' => 'sometimes|string|max:255',
+            'name' => 'sometimes|string|max:255|unique:classes,name,' . $id,
+            'section' => 'sometimes|string|max:50',
+            'class_teacher_id' => 'nullable|exists:teachers,id',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id'
         ]);
 
-        $schoolClass->update(['name' => $data['name'] ?? $schoolClass->name]);
+        \DB::transaction(function () use ($schoolClass, $data) {
+            $schoolClass->update([
+                'name' => $data['name'] ?? $schoolClass->name,
+                'section' => $data['section'] ?? $schoolClass->section,
+                'class_teacher_id' => $data['class_teacher_id'] ?? $schoolClass->class_teacher_id,
+            ]);
 
-        if (isset($data['subject_ids'])) {
-            $schoolClass->subjects()->sync($data['subject_ids']);
-        }
+            if (isset($data['subject_ids'])) {
+                $schoolClass->subjects()->sync($data['subject_ids']);
+            }
+        });
 
         return response()->json([
             'status' => true,
             'message' => 'Class updated successfully',
-            'data' => $schoolClass->load('subjects')
+            'data' => $schoolClass->fresh('subjects')
         ]);
     }
     public function destroy($domain, $id)
