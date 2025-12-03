@@ -6,56 +6,64 @@ use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ClassController extends Controller
 {
 
-   public function index()
-{
-    $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
-        ->with([
-            'classTeacher:id,name',
-            'subjects' => function ($query) {
-                $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks', 'subjects.theory_pass_marks');
-            },
-            'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
-        ])
-        ->get(); // remove orderBy('name')
+    public function index()
+    {
+        $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
+            ->with([
+                'classTeacher:id,name',
+                'subjects' => function ($query) {
+                    $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks', 'subjects.theory_pass_marks');
+                },
+                'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
+            ])
+            ->get(); // remove orderBy('name')
 
-    // Filter activities by class_id
-    $classes->each(function ($class) {
-        $class->subjects->each(function ($subject) use ($class) {
-            $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
-                return $activity->class_id == $class->id;
-            })->values();
+        // Filter activities by class_id
+        $classes->each(function ($class) {
+            $class->subjects->each(function ($subject) use ($class) {
+                $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
+                    return $activity->class_id == $class->id;
+                })->values();
 
-            $subject->setRelation('activities', $filteredActivities);
+                $subject->setRelation('activities', $filteredActivities);
+            });
         });
-    });
 
-    // Sort classes by grade number + section
-    $classes = $classes->sortBy(function ($class) {
-        // Extract numeric grade
-        preg_match('/\d+/', $class->name, $matches);
-        $gradeNumber = $matches[0] ?? 0;
+        // Sort classes by grade number + section
+        $classes = $classes->sortBy(function ($class) {
+            // Extract numeric grade
+            preg_match('/\d+/', $class->name, $matches);
+            $gradeNumber = $matches[0] ?? 0;
 
-        // Combine grade number and section for proper sorting
-        return sprintf('%03d-%s', $gradeNumber, $class->section ?? '');
-    })->values(); // reindex the collection
+            // Combine grade number and section for proper sorting
+            return sprintf('%03d-%s', $gradeNumber, $class->section ?? '');
+        })->values(); // reindex the collection
 
-    return response()->json([
-        'status' => true,
-        'message' => 'Classes fetched successfully',
-        'data' => $classes
-    ]);
-}
+        return response()->json([
+            'status' => true,
+            'message' => 'Classes fetched successfully',
+            'data' => $classes
+        ]);
+    }
 
 
 
     public function store(Request $request, $domain)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:classes,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('classes')->where(function ($query) use ($request) {
+                    return $query->where('section', $request->section);
+                }),
+            ],
             'section' => 'nullable|string|max:50',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
@@ -104,6 +112,8 @@ class ClassController extends Controller
             ], 500);
         }
     }
+
+
     public function show($domain, $id)
     {
         $schoolClass = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
@@ -126,13 +136,23 @@ class ClassController extends Controller
     {
         $schoolClass = SchoolClass::findOrFail($id);
 
+
+
         $data = $request->validate([
-            'name' => 'sometimes|string|max:255|unique:classes,name,' . $id,
+            'name' => [
+                'sometimes',
+                'string',
+                'max:255',
+                Rule::unique('classes')->where(function ($query) use ($request) {
+                    return $query->where('section', $request->section);
+                })->ignore($id),
+            ],
             'section' => 'sometimes|string|max:50',
             'class_teacher_id' => 'nullable|exists:teachers,id',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id'
         ]);
+
 
         \DB::transaction(function () use ($schoolClass, $data) {
             $schoolClass->update([
