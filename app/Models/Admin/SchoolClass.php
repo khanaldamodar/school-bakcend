@@ -30,14 +30,8 @@ class SchoolClass extends Model
             ->withPivot('teacher_id')
             ->withTimestamps();
     }
-
     public function activities()
     {
         return $this->hasMany(ExtraCurricularActivity::class, 'subject_id');
     }
-
-
-
-
-
 }

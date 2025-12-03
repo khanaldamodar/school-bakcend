@@ -65,7 +65,7 @@ class StudentController extends Controller
             'last_name' => 'nullable|string|max:255',
             'dob' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
-            'email' => 'nullable|email|unique:students,email',
+            'email' => 'nullable|email',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'nullable|boolean',
             'is_tribe' => 'nullable|boolean',
@@ -80,7 +80,7 @@ class StudentController extends Controller
             'parents' => 'required|array|min:1',
             'parents.*.first_name' => 'required|string|max:255',
             'parents.*.last_name' => 'nullable|string|max:255',
-            'parents.*.email' => 'required|email',
+            'parents.*.email' => 'nullable|email',
             'parents.*.phone' => 'nullable|string|max:20',
             'parents.*.relation' => 'required|in:father,mother,guardian',
         ]);
