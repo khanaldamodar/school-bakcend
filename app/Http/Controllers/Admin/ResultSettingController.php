@@ -39,7 +39,8 @@ class ResultSettingController extends Controller
             'total_terms' => 'required|integer|min:1|max:12',
             'calculation_method' => 'required|in:simple,weighted',
             'result_type' => 'required|in:gpa,percentage',
-            'term_weights' => 'nullable|array'
+            'term_weights' => 'nullable|array',
+            'evaluation_per_term' => 'sometimes|boolean'
         ]);
 
         // Prevent duplicate record for same setting
@@ -78,7 +79,8 @@ class ResultSettingController extends Controller
             'total_terms' => 'sometimes|integer|min:1|max:12',
             'calculation_method' => 'sometimes|in:simple,weighted',
             'result_type' => 'sometimes|in:gpa,percentage',
-            'term_weights' => 'nullable|array'
+            'term_weights' => 'nullable|array',
+            'evaluation_per_term' => 'sometimes|boolean'
         ]);
 
         //  If calculation_method is not weighted, remove term_weights
