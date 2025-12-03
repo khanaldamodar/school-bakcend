@@ -11,34 +11,36 @@ class ClassController extends Controller
 {
 
     public function index()
-    {
-        $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
-            ->with([
-                'classTeacher:id,name',
-                'subjects' => function ($query) {
-                    $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
-                },
-                'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
-            ])
-            ->get();
+{
+    $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
+        ->with([
+            'classTeacher:id,name',
+            'subjects' => function ($query) {
+                $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
+            },
+            'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
+        ])
+        ->orderBy('name') // <-- order by ID (or name if your name has Grade sequence)
+        ->get();
 
-        // Filter activities by class_id
-        $classes->each(function ($class) {
-            $class->subjects->each(function ($subject) use ($class) {
-                $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
-                    return $activity->class_id == $class->id;
-                })->values();
+    // Filter activities by class_id
+    $classes->each(function ($class) {
+        $class->subjects->each(function ($subject) use ($class) {
+            $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
+                return $activity->class_id == $class->id;
+            })->values();
 
-                $subject->setRelation('activities', $filteredActivities);
-            });
+            $subject->setRelation('activities', $filteredActivities);
         });
+    });
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Classes fetched successfully',
-            'data' => $classes
-        ]);
-    }
+    return response()->json([
+        'status' => true,
+        'message' => 'Classes fetched successfully',
+        'data' => $classes
+    ]);
+}
+
 
     public function store(Request $request, $domain)
     {
