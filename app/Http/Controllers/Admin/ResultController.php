@@ -722,7 +722,6 @@ class ResultController extends Controller
 
 
 
-
     public function bulkStore(Request $request)
     {
         $user = $request->user();
@@ -773,8 +772,6 @@ class ResultController extends Controller
             'count' => count($resultsData),
         ], 201);
     }
-
-
 
 
    public function createClassResultByTeacher(Request $request)
@@ -954,12 +951,12 @@ class ResultController extends Controller
             'results' => $data
         ]);
     }
-
+    
 
     public function getWholeClassResults(Request $request, $domain, $classId)
     {
         // Validate class
-        if (!\App\Models\Admin\SchoolClass::where('id', $classId)->exists()) {
+        if (!SchoolClass::where('id', $classId)->exists()) {
             return response()->json([
                 'status' => false,
                 'message' => 'Class not found'
