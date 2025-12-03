@@ -12,7 +12,7 @@ class ClassController extends Controller
 
     public function index()
     {
-        $classes = SchoolClass::select('id', 'name', 'section')
+        $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
             ->with([
                 'subjects' => function ($query) {
                     $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
@@ -86,7 +86,7 @@ class ClassController extends Controller
     }
     public function show($domain, $id)
     {
-        $schoolClass = SchoolClass::select('id', 'name')
+        $schoolClass = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
             ->with([
                 'subjects:id,name,theory_marks,practical_marks',
                 'subjects.activities' => function ($query) use ($id) {
