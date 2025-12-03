@@ -12,6 +12,12 @@ class ResultSetting extends Model
     {
         return $this->belongsTo(Setting::class, 'setting_id');
     }
+
+    public function terms()
+    {
+        return $this->hasMany(Term::class);
+    }
+
     protected $cast = [
         'term_weights' => 'array'
     ];

@@ -13,7 +13,7 @@ class ResultSettingController extends Controller
      */
     public function index()
     {
-        $setting = ResultSetting::first();
+        $setting = ResultSetting::with('terms')->get();
 
         if (!$setting) {
             return response()->json([
@@ -40,7 +40,14 @@ class ResultSettingController extends Controller
             'calculation_method' => 'required|in:simple,weighted',
             'result_type' => 'required|in:gpa,percentage',
             'term_weights' => 'nullable|array',
-            'evaluation_per_term' => 'sometimes|boolean'
+            'evaluation_per_term' => 'sometimes|boolean',
+            'terms' => 'required|array', // array of terms
+            'terms.*.name' => 'required|string',
+            'terms.*.weight' => 'nullable|integer',
+            'terms.*.exam_date' => 'nullable|date',
+            'terms.*.publish_date' => 'nullable|date',
+            'terms.*.start_date' => 'nullable|date',
+            'terms.*.end_date' => 'nullable|date',
         ]);
 
         // Prevent duplicate record for same setting
@@ -51,14 +58,21 @@ class ResultSettingController extends Controller
             ], 409);
         }
 
+        // Create ResultSetting
         $setting = ResultSetting::create($validated);
+
+        // Create terms for this ResultSetting
+        if (!empty($validated['terms'])) {
+            $setting->terms()->createMany($validated['terms']);
+        }
 
         return response()->json([
             'status' => true,
             'message' => 'Result setting created successfully',
-            'data' => $setting
+            'data' => $setting->load('terms')
         ], 201);
     }
+
 
     /**
      * Display the specified resource.
@@ -80,10 +94,18 @@ class ResultSettingController extends Controller
             'calculation_method' => 'sometimes|in:simple,weighted',
             'result_type' => 'sometimes|in:gpa,percentage',
             'term_weights' => 'nullable|array',
-            'evaluation_per_term' => 'sometimes|boolean'
+            'evaluation_per_term' => 'sometimes|boolean',
+            'terms' => 'nullable|array',
+            'terms.*.id' => 'sometimes|exists:terms,id',
+            'terms.*.name' => 'required_with:terms|string',
+            'terms.*.weight' => 'nullable|integer',
+            'terms.*.exam_date' => 'nullable|date',
+            'terms.*.publish_date' => 'nullable|date',
+            'terms.*.start_date' => 'nullable|date',
+            'terms.*.end_date' => 'nullable|date',
         ]);
 
-        //  If calculation_method is not weighted, remove term_weights
+        // If calculation_method is not weighted, remove term_weights
         if (
             isset($validated['calculation_method']) &&
             $validated['calculation_method'] !== 'weighted'
@@ -91,7 +113,7 @@ class ResultSettingController extends Controller
             $validated['term_weights'] = null;
         }
 
-        //  If weighted, confirm weights sum to 100
+        // If weighted, confirm weights sum to 100
         if (
             isset($validated['calculation_method']) &&
             $validated['calculation_method'] === 'weighted' &&
@@ -104,12 +126,29 @@ class ResultSettingController extends Controller
             }
         }
 
+        // Update ResultSetting
         $resultSetting->update($validated);
+
+        // Update or create terms if provided
+        if (!empty($validated['terms'])) {
+            foreach ($validated['terms'] as $termData) {
+                if (isset($termData['id'])) {
+                    // Update existing term
+                    $term = $resultSetting->terms()->find($termData['id']);
+                    if ($term) {
+                        $term->update($termData);
+                    }
+                } else {
+                    // Create new term
+                    $resultSetting->terms()->create($termData);
+                }
+            }
+        }
 
         return response()->json([
             'status' => true,
             'message' => 'Result setting updated successfully',
-            'data' => $resultSetting->fresh()
+            'data' => $resultSetting->load('terms')
         ]);
     }
 
