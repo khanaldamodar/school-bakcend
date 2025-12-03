@@ -80,7 +80,14 @@ class ClassController extends Controller
             ]);
 
             if (!empty($data['subject_ids'])) {
-                $schoolClass->subjects()->sync($data['subject_ids']);
+                $subjects = Subject::whereIn('id', $data['subject_ids'])->get();
+                $syncData = [];
+                foreach ($subjects as $subject) {
+                    $syncData[$subject->id] = [
+                        'teacher_id' => $subject->teacher_id ?? $schoolClass->class_teacher_id
+                    ];
+                }
+                $schoolClass->subjects()->sync($syncData);
             }
 
             return response()->json([
@@ -135,7 +142,14 @@ class ClassController extends Controller
             ]);
 
             if (isset($data['subject_ids'])) {
-                $schoolClass->subjects()->sync($data['subject_ids']);
+                $subjects = Subject::whereIn('id', $data['subject_ids'])->get();
+                $syncData = [];
+                foreach ($subjects as $subject) {
+                    $syncData[$subject->id] = [
+                        'teacher_id' => $subject->teacher_id ?? $schoolClass->class_teacher_id
+                    ];
+                }
+                $schoolClass->subjects()->sync($syncData);
             }
         });
 

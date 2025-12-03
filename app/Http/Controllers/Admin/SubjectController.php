@@ -87,6 +87,7 @@ class SubjectController extends Controller
             'name' => 'sometimes|string|max:255|unique:subjects,name,' . $id,
             'theory_marks' => 'sometimes|integer|min:0',
             'practical_marks' => 'sometimes|integer|min:0',
+            'theory_pass_marks' => 'sometimes|decimal|min:0',
             'teacher_id' => 'nullable|exists:users,id',
 
             // ACTIVITY VALIDATION
@@ -132,6 +133,7 @@ class SubjectController extends Controller
                                 'activity_name' => $activity['activity_name'],
                                 'full_marks' => $activity['full_marks'] ?? null,
                                 'pass_marks' => $activity['pass_marks'] ?? null,
+                                'theory_pass_marks' => $activity['theory_pass_marks'] ?? null,
                             ]);
                     } else {
                         // CREATE NEW
@@ -256,14 +258,13 @@ class SubjectController extends Controller
     }
 
 
-
-
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:subjects,name',
             'subject_code' => 'nullable|string',
             'theory_marks' => 'required|integer|min:0',
+            'theory_pass_marks' => 'required|decimal|min:0',
             'practical_marks' => 'required|integer|min:0',
             'teacher_id' => 'nullable|exists:users,id',
 

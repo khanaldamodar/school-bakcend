@@ -15,7 +15,8 @@ class Subject extends Model
         'theory_marks',
         'practical_marks',
         'teacher_id',
-        'class_id'
+        'class_id',
+        'theory_pass_marks'
 
     ];
 
