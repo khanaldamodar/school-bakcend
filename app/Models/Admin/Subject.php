@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Subject extends Model
 {
 
-    protected $table = 'subjects'; 
+    protected $table = 'subjects';
     protected $fillable = [
         'name',
         'subject_code',
@@ -30,17 +30,17 @@ class Subject extends Model
     }
 
     public function classesWithTeachers()
-{
-    return $this->belongsToMany(SchoolClass::class, 'class_subject_teacher')
-                ->withPivot('teacher_id')
-                ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(SchoolClass::class, 'class_subject_teacher')
+            ->withPivot('teacher_id')
+            ->withTimestamps();
+    }
 
 
-public function activities()
-{
-    return $this->hasMany(ExtraCurricularActivity::class);
-}
+    public function activities()
+    {
+        return $this->hasMany(ExtraCurricularActivity::class);
+    }
 
 
 }

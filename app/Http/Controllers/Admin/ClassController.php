@@ -9,22 +9,24 @@ use Illuminate\Support\Facades\Validator;
 
 class ClassController extends Controller
 {
-    public function index()
-    {
-        $classes = SchoolClass::select('id', 'name')
-            ->with([
-                'subjects:id,name,theory_marks,practical_marks',
-                'subjects.activities:id,subject_id,activity_name,full_marks,pass_marks'
-            ])
-            ->get();
+    
+  public function index()
+{
+    $classes = SchoolClass::select('id', 'name', 'section')
+        ->with([
+            'subjects' => function ($query) {
+                $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
+            },
+            'subjects.activities:id,subject_id,activity_name,full_marks,pass_marks',
+        ])
+        ->get();
 
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Classes fetched successfully',
-            'data' => $classes
-        ]);
-    }
+    return response()->json([
+        'status' => true,
+        'message' => 'Classes fetched successfully',
+        'data' => $classes
+    ]);
+}
 
     public function store(Request $request, $domain)
     {
@@ -71,10 +73,6 @@ class ClassController extends Controller
             ], 500);
         }
     }
-
-
-
-
     public function show($domain, $id)
     {
         $schoolClass = SchoolClass::select('id', 'name')
@@ -89,7 +87,6 @@ class ClassController extends Controller
             'data' => $schoolClass
         ]);
     }
-
     public function update(Request $request, $domain, $id)
     {
         $schoolClass = SchoolClass::findOrFail($id);
@@ -112,7 +109,6 @@ class ClassController extends Controller
             'data' => $schoolClass->load('subjects')
         ]);
     }
-
     public function destroy($domain, $id)
     {
         $schoolClass = SchoolClass::findOrFail($id);
