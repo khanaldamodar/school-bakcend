@@ -17,9 +17,20 @@ class ClassController extends Controller
             'subjects' => function ($query) {
                 $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
             },
-            'subjects.activities:id,subject_id,activity_name,full_marks,pass_marks',
+            'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
         ])
         ->get();
+
+    // Filter activities by class_id
+    $classes->each(function ($class) {
+        $class->subjects->each(function ($subject) use ($class) {
+            $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
+                return $activity->class_id == $class->id;
+            })->values();
+            
+            $subject->setRelation('activities', $filteredActivities);
+        });
+    });
 
     return response()->json([
         'status' => true,
@@ -78,7 +89,10 @@ class ClassController extends Controller
         $schoolClass = SchoolClass::select('id', 'name')
             ->with([
                 'subjects:id,name,theory_marks,practical_marks',
-                'subjects.activities:id,subject_id,activity_name,full_marks,pass_marks'
+                'subjects.activities' => function ($query) use ($id) {
+                    $query->select('id', 'subject_id', 'class_id', 'activity_name', 'full_marks', 'pass_marks')
+                          ->where('class_id', $id);
+                }
             ])->findOrFail($id);
 
         return response()->json([
