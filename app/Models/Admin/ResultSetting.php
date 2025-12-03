@@ -18,8 +18,9 @@ class ResultSetting extends Model
         return $this->hasMany(Term::class);
     }
 
-    protected $cast = [
-        'term_weights' => 'array'
+    protected $casts = [
+        'term_weights' => 'array',
+        'evaluation_per_term' => 'boolean',
     ];
 
 }

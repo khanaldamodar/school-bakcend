@@ -105,15 +105,11 @@ class ResultSettingController extends Controller
             'terms.*.end_date' => 'nullable|date',
         ]);
 
-        // If calculation_method is not weighted, remove term_weights
-        if (
-            isset($validated['calculation_method']) &&
-            $validated['calculation_method'] !== 'weighted'
-        ) {
+        // Handle weighted calculation
+        if (isset($validated['calculation_method']) && $validated['calculation_method'] !== 'weighted') {
             $validated['term_weights'] = null;
         }
 
-        // If weighted, confirm weights sum to 100
         if (
             isset($validated['calculation_method']) &&
             $validated['calculation_method'] === 'weighted' &&
@@ -129,20 +125,25 @@ class ResultSettingController extends Controller
         // Update ResultSetting
         $resultSetting->update($validated);
 
-        // Update or create terms if provided
         if (!empty($validated['terms'])) {
+            $termIdsFromRequest = [];
             foreach ($validated['terms'] as $termData) {
-                if (isset($termData['id'])) {
+                if (!empty($termData['id'])) {
                     // Update existing term
                     $term = $resultSetting->terms()->find($termData['id']);
                     if ($term) {
                         $term->update($termData);
+                        $termIdsFromRequest[] = $term->id;
                     }
                 } else {
                     // Create new term
-                    $resultSetting->terms()->create($termData);
+                    $newTerm = $resultSetting->terms()->create($termData);
+                    $termIdsFromRequest[] = $newTerm->id;
                 }
             }
+
+            // Delete terms that were removed from request
+            $resultSetting->terms()->whereNotIn('id', $termIdsFromRequest)->delete();
         }
 
         return response()->json([
@@ -151,5 +152,6 @@ class ResultSettingController extends Controller
             'data' => $resultSetting->load('terms')
         ]);
     }
+
 
 }
