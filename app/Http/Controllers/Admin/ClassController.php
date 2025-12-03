@@ -17,7 +17,7 @@ class ClassController extends Controller
             ->with([
                 'classTeacher:id,name',
                 'subjects' => function ($query) {
-                    $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks', 'subjects.theory_pass_marks');
+                    $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
                 },
                 'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
             ])
