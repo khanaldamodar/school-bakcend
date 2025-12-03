@@ -16,7 +16,7 @@ class ClassController extends Controller
         ->with([
             'classTeacher:id,name',
             'subjects' => function ($query) {
-                $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks');
+                $query->select('subjects.id', 'subjects.name', 'subjects.theory_marks', 'subjects.practical_marks', 'subjects.theory_pass_marks');
             },
             'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
         ])
@@ -109,7 +109,7 @@ class ClassController extends Controller
         $schoolClass = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
             ->with([
                 'classTeacher:id,name',
-                'subjects:id,name,theory_marks,practical_marks',
+                'subjects:id,name,theory_marks,practical_marks,theory_pass_marks',
                 'subjects.activities' => function ($query) use ($id) {
                     $query->select('id', 'subject_id', 'class_id', 'activity_name', 'full_marks', 'pass_marks')
                         ->where('class_id', $id);

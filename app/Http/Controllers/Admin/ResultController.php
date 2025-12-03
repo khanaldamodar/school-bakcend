@@ -26,7 +26,7 @@ class ResultController extends Controller
         $query = Result::with([
             'student:id,first_name,last_name,class_id',
             'class:id,name,class_code',
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'teacher:id,first_name,last_name'
         ]);
 
@@ -128,7 +128,7 @@ class ResultController extends Controller
         $result = Result::with([
             'student:id,first_name,last_name,class_id',
             'class:id,name,class_code',
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'teacher:id,first_name,last_name'
         ])->findOrFail($id);
 
@@ -254,7 +254,7 @@ class ResultController extends Controller
         $query = Result::with([
             'student:id,first_name,last_name,class_id',
             'class:id,name,class_code',
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'teacher:id,first_name,last_name'
         ])->where('class_id', $classId);
 
@@ -298,7 +298,7 @@ class ResultController extends Controller
         $query = Result::with([
             'student:id,first_name,last_name,class_id',
             'class:id,name,class_code',
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'teacher:id,first_name,last_name'
         ])->where('class_id', $classId)
             ->whereHas('student', function ($q) use ($name) {
@@ -352,7 +352,7 @@ class ResultController extends Controller
 
         // fetch all results including past classes
         $results = Result::with([
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'activities.activity:id,activity_name,full_marks'
         ])
             ->where('student_id', $student->id) // use student.id, not user_id
@@ -641,7 +641,7 @@ class ResultController extends Controller
 
         // Base query for results with relationships
         $query = Result::with(relations: [
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'class:id,name,class_code',
             'teacher:id,first_name,last_name'
         ])->where('student_id', $student->id);
@@ -904,7 +904,7 @@ class ResultController extends Controller
 
         // Fetch results with subject, teacher, and activities
         $results = Result::with([
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'teacher:id,name',
             'activities.activity:id,activity_name,full_marks'
         ])
@@ -969,7 +969,7 @@ class ResultController extends Controller
         // Fetch class results
         $results = Result::with([
             'student:id,first_name,last_name,roll_number',
-            'subject:id,name,theory_marks,practical_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'activities.activity:id,activity_name,full_marks,pass_marks'
         ])
             ->where('class_id', $classId)
