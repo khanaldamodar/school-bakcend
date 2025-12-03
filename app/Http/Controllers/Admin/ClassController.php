@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Validator;
 class ClassController extends Controller
 {
 
-    public function index()
+   public function index()
 {
     $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
         ->with([
@@ -20,8 +20,7 @@ class ClassController extends Controller
             },
             'subjects.activities:id,subject_id,class_id,activity_name,full_marks,pass_marks',
         ])
-        ->orderBy('name') // <-- order by ID (or name if your name has Grade sequence)
-        ->get();
+        ->get(); // remove orderBy('name')
 
     // Filter activities by class_id
     $classes->each(function ($class) {
@@ -34,12 +33,23 @@ class ClassController extends Controller
         });
     });
 
+    // Sort classes by grade number + section
+    $classes = $classes->sortBy(function ($class) {
+        // Extract numeric grade
+        preg_match('/\d+/', $class->name, $matches);
+        $gradeNumber = $matches[0] ?? 0;
+
+        // Combine grade number and section for proper sorting
+        return sprintf('%03d-%s', $gradeNumber, $class->section ?? '');
+    })->values(); // reindex the collection
+
     return response()->json([
         'status' => true,
         'message' => 'Classes fetched successfully',
         'data' => $classes
     ]);
 }
+
 
 
     public function store(Request $request, $domain)
