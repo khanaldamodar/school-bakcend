@@ -285,7 +285,8 @@ class SubjectController extends Controller
                 'subject_code',
                 'theory_marks',
                 'practical_marks',
-                'teacher_id'
+                'teacher_id',
+                'theory_pass_marks'
             ]));
 
             //  Create Activities (if provided)
