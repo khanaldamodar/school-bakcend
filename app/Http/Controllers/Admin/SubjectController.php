@@ -264,7 +264,7 @@ class SubjectController extends Controller
             'name' => 'required|string|max:255|unique:subjects,name',
             'subject_code' => 'nullable|string',
             'theory_marks' => 'required|integer|min:0',
-            'theory_pass_marks' => 'required|decimal|min:0',
+            'theory_pass_marks' => 'required|numeric|min:0',
             'practical_marks' => 'required|integer|min:0',
             'teacher_id' => 'nullable|exists:users,id',
 
