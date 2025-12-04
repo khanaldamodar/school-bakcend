@@ -15,7 +15,7 @@ class SettingController extends Controller
     public function index()
     {
 
-        $settings = Setting::with('resultSetting')->first();
+        $settings = Setting::with('resultSetting', 'resultSetting.terms')->first();
         // dd($settings);
 
         if (!$settings) {
@@ -74,71 +74,71 @@ class SettingController extends Controller
 
 
 
-    
+
     // ?To update the settings of the school
     public function update(Request $request)
     {
-    $settings = Setting::first();
+        $settings = Setting::first();
 
-    if (!$settings) {
-        return response()->json(['message' => 'Settings not found'], 404);
-    }
-
-    $validatedData = $request->validate([
-        'name' => 'sometimes|string|max:255',
-        'about' => 'sometimes|string',
-        'logo' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        'favicon' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        'address' => 'sometimes|string|max:255',
-        'phone' => 'sometimes|string|max:20',
-        'email' => 'sometimes|email|max:255',
-        'facebook' => 'sometimes|url|max:255',
-        'twitter' => 'sometimes|url|max:255',
-        'start_time' => 'sometimes|date_format:H:i:s',
-        'end_time' => 'sometimes|date_format:H:i:s',
-        'school_type'=> 'sometimes|string|max:100',
-        'established_date'=> 'sometimes|date',
-        'principle'=> 'sometimes|string|max:100',
-        'favicon_public_id'=> "sometimes|string",
-        'logo_public_id'=> 'sometimes|string'
-    ]);
-
-    // === Upload Logo to Cloudinary ===
-    if ($request->hasFile('logo')) {
-        $upload = ImageUploadHelper::uploadToCloud(
-            $request->file('logo'),
-            'school/settings/logos',
-            $settings->logo_public_id ?? null // pass old public_id if exists
-        );
-
-        if ($upload) {
-            $validatedData['logo'] = $upload['url'];
-            $validatedData['logo_public_id'] = $upload['public_id'];
+        if (!$settings) {
+            return response()->json(['message' => 'Settings not found'], 404);
         }
-    }
 
-    // === Upload Favicon to Cloudinary ===
-    if ($request->hasFile('favicon')) {
-        $upload = ImageUploadHelper::uploadToCloud(
-            $request->file('favicon'),
-            'school/settings/favicons',
-            $settings->favicon_public_id ?? null
-        );
+        $validatedData = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'about' => 'sometimes|string',
+            'logo' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'favicon' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'address' => 'sometimes|string|max:255',
+            'phone' => 'sometimes|string|max:20',
+            'email' => 'sometimes|email|max:255',
+            'facebook' => 'sometimes|url|max:255',
+            'twitter' => 'sometimes|url|max:255',
+            'start_time' => 'sometimes|date_format:H:i:s',
+            'end_time' => 'sometimes|date_format:H:i:s',
+            'school_type' => 'sometimes|string|max:100',
+            'established_date' => 'sometimes|date',
+            'principle' => 'sometimes|string|max:100',
+            'favicon_public_id' => "sometimes|string",
+            'logo_public_id' => 'sometimes|string'
+        ]);
 
-        if ($upload) {
-            $validatedData['favicon'] = $upload['url'];
-            $validatedData['favicon_public_id'] = $upload['public_id'];
+        // === Upload Logo to Cloudinary ===
+        if ($request->hasFile('logo')) {
+            $upload = ImageUploadHelper::uploadToCloud(
+                $request->file('logo'),
+                'school/settings/logos',
+                $settings->logo_public_id ?? null // pass old public_id if exists
+            );
+
+            if ($upload) {
+                $validatedData['logo'] = $upload['url'];
+                $validatedData['logo_public_id'] = $upload['public_id'];
+            }
         }
+
+        // === Upload Favicon to Cloudinary ===
+        if ($request->hasFile('favicon')) {
+            $upload = ImageUploadHelper::uploadToCloud(
+                $request->file('favicon'),
+                'school/settings/favicons',
+                $settings->favicon_public_id ?? null
+            );
+
+            if ($upload) {
+                $validatedData['favicon'] = $upload['url'];
+                $validatedData['favicon_public_id'] = $upload['public_id'];
+            }
+        }
+
+        // === Update other fields ===
+        $settings->update($validatedData);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Settings updated successfully',
+            'data' => $settings
+        ], 200);
     }
-
-    // === Update other fields ===
-    $settings->update($validatedData);
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Settings updated successfully',
-        'data' => $settings
-    ], 200);
-}
 
 }

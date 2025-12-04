@@ -167,8 +167,6 @@ class SubjectController extends Controller
         ]);
     }
 
-
-
     public function getSubjectsByClass($domain, $classId)
     {
         $schoolClass = SchoolClass::with([
@@ -191,7 +189,6 @@ class SubjectController extends Controller
             'data' => $schoolClass->subjects
         ]);
     }
-
 
     public function storeClassSubjectTeacher(Request $request)
     {
@@ -256,7 +253,6 @@ class SubjectController extends Controller
             'data' => $data
         ]);
     }
-
 
     public function store(Request $request)
     {
