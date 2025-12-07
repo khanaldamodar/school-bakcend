@@ -1003,14 +1003,13 @@ class ResultController extends Controller
 
                 return [
                     'subject' => $result->subject->name,
-                    'marks_theory' => $result->marks_theory,
-                    'marks_practical' => $result->marks_practical,
-                    'activity_marks' => $activityMarks,
-                    'total_marks' => $result->marks_theory + $result->marks_practical,  // + $activityMarks, 
-                    'max_marks' =>
-                        ($result->subject->theory_marks ?? 0) +
-                        ($result->subject->practical_marks ?? 0) +
-                        $activityMaxMarks,
+                    'obtained_marks_theory' => $result->marks_theory,
+                    'obtained_marks_practical' => $result->marks_practical,
+                    'obtained_activity_marks' => $activityMarks,
+                    'obtained_total_marks' => $result->marks_theory + $result->marks_practical,  // + $activityMarks, 
+                    'full_marks_theory' =>
+                        ($result->subject->theory_marks ?? 0),
+                    'full_marks_practical' => ($result->subject->practical_marks ?? 0),
                     'gpa' => $result->gpa,
                     'exam_date' => $result->exam_date,
                     'activities' => $result->activities->map(fn($a) => [
