@@ -1,5 +1,4 @@
 <?php
-
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\CreateUserController;
 use App\Http\Controllers\Admin\DashboardController;

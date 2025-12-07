@@ -1001,7 +1001,7 @@ class ResultController extends Controller
                     'marks_theory' => $result->marks_theory,
                     'marks_practical' => $result->marks_practical,
                     'activity_marks' => $activityMarks,
-                    'total_marks' => $result->marks_theory + $result->marks_practical + $activityMarks,
+                    'total_marks' => $result->marks_theory + $result->marks_practical,  // + $activityMarks, 
                     'max_marks' =>
                     ($result->subject->theory_marks ?? 0) +
                         ($result->subject->practical_marks ?? 0) +
