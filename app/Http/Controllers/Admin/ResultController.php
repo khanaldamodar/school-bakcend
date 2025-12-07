@@ -335,14 +335,14 @@ class ResultController extends Controller
         // get the logged in user
         $user = auth()->user();
 
-     
+
 
         try {
             // find student based on user_id
             $student = Student::with('class:id,name')
                 ->where('user_id', $user->id)
                 ->firstOrFail();
-            
+
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'status' => false,
@@ -774,126 +774,125 @@ class ResultController extends Controller
     }
 
 
-   public function createClassResultByTeacher(Request $request)
-{
-    $user = $request->user();
+    public function createClassResultByTeacher(Request $request)
+    {
+        $user = $request->user();
 
-    $validated = $request->validate([
-        'class_id' => 'required|exists:classes,id',
-        'exam_type' => 'nullable|string|max:255',
-        'exam_date' => 'nullable|date',
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'exam_type' => 'nullable|string|max:255',
+            'exam_date' => 'nullable|date',
 
-        'students' => 'required|array',
-        'students.*.student_id' => 'required|exists:students,id',
-        'students.*.results' => 'required|array',
+            'students' => 'required|array',
+            'students.*.student_id' => 'required|exists:students,id',
+            'students.*.results' => 'required|array',
 
-        'students.*.results.*.subject_id' => 'required|exists:subjects,id',
-        'students.*.results.*.marks_theory' => 'required|integer|min:0',
-        'students.*.results.*.marks_practical' => 'required|integer|min:0',
+            'students.*.results.*.subject_id' => 'required|exists:subjects,id',
+            'students.*.results.*.marks_theory' => 'required|integer|min:0',
+            'students.*.results.*.marks_practical' => 'required|integer|min:0',
 
-        'students.*.results.*.activities' => 'nullable|array',
-        'students.*.results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
-        'students.*.results.*.activities.*.marks' => 'required|integer|min:0',
-    ]);
+            'students.*.results.*.activities' => 'nullable|array',
+            'students.*.results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
+            'students.*.results.*.activities.*.marks' => 'required|integer|min:0',
+        ]);
 
-    $teacher = Teacher::with('subjects')
-        ->where('user_id', $user->id)->firstOrFail();
+        $teacher = Teacher::with('subjects')
+            ->where('user_id', $user->id)->firstOrFail();
 
-    DB::beginTransaction();
+        DB::beginTransaction();
 
-    try {
+        try {
 
-        foreach ($validated['students'] as $studentData) {
+            foreach ($validated['students'] as $studentData) {
 
-            foreach ($studentData['results'] as $resultData) {
+                foreach ($studentData['results'] as $resultData) {
 
-                // ✅ Prevent duplicate entry
-                $exists = Result::where('student_id', $studentData['student_id'])
-                    ->where('class_id', $validated['class_id'])
-                    ->where('subject_id', $resultData['subject_id'])
-                    ->where('exam_type', $validated['exam_type'])
-                    ->exists();
+                    // ✅ Prevent duplicate entry
+                    $exists = Result::where('student_id', $studentData['student_id'])
+                        ->where('class_id', $validated['class_id'])
+                        ->where('subject_id', $resultData['subject_id'])
+                        ->where('exam_type', $validated['exam_type'])
+                        ->exists();
 
 
-                if ($exists) {
-                    throw new \Exception("Result already exists for some students and subjects.");
-                }
-
-                // SUBJECT MARKS
-                $subject = Subject::findOrFail($resultData['subject_id']);
-
-                $maxMarks = ($subject->theory_marks ?? 0) + ($subject->practical_marks ?? 0);
-                $obtained = $resultData['marks_theory'] + $resultData['marks_practical'];
-
-                // CREATE RESULT
-                $result = Result::create([
-                    'student_id' => $studentData['student_id'],
-                    'class_id' => $validated['class_id'],
-                    'subject_id' => $resultData['subject_id'],
-                    'teacher_id' => $teacher->id,
-                    'marks_theory' => $resultData['marks_theory'],
-                    'marks_practical' => $resultData['marks_practical'],
-                    'exam_type' => $validated['exam_type'] ?? null,
-                    'exam_date' => $validated['exam_date'] ?? null,
-                    'gpa' => 0
-                ]);
-                
-
-                $activityMarks = 0;
-                $activityMax = 0;
-
-                // SAVE ACTIVITIES
-                if (!empty($resultData['activities'])) {
-                    foreach ($resultData['activities'] as $activityData) {
-
-                        $activity = ExtraCurricularActivity::where('id', $activityData['activity_id'])
-                            ->where(function ($q) use ($validated) {
-                                $q->where('class_id', $validated['class_id'])
-                                  ->orWhereNull('class_id');
-                            })
-                            ->firstOrFail();
-
-                        ResultActivity::create([
-                            'result_id' => $result->id,
-                            'activity_id' => $activityData['activity_id'],
-                            'marks' => $activityData['marks']
-                        ]);
-
-                        $activityMarks += $activityData['marks'];
-                        $activityMax += $activity->full_marks ?? 0;
+                    if ($exists) {
+                        throw new \Exception("Result already exists for some students and subjects.");
                     }
+
+                    // SUBJECT MARKS
+                    $subject = Subject::findOrFail($resultData['subject_id']);
+
+                    $maxMarks = ($subject->theory_marks ?? 0) + ($subject->practical_marks ?? 0);
+                    $obtained = $resultData['marks_theory'] + $resultData['marks_practical'];
+
+                    // CREATE RESULT
+                    $result = Result::create([
+                        'student_id' => $studentData['student_id'],
+                        'class_id' => $validated['class_id'],
+                        'subject_id' => $resultData['subject_id'],
+                        'teacher_id' => $teacher->id,
+                        'marks_theory' => $resultData['marks_theory'],
+                        'marks_practical' => $resultData['marks_practical'],
+                        'exam_type' => $validated['exam_type'] ?? null,
+                        'exam_date' => $validated['exam_date'] ?? null,
+                        'gpa' => 0
+                    ]);
+
+
+                    $activityMarks = 0;
+                    $activityMax = 0;
+
+                    // SAVE ACTIVITIES
+                    if (!empty($resultData['activities'])) {
+                        foreach ($resultData['activities'] as $activityData) {
+
+                            $activity = ExtraCurricularActivity::where('id', $activityData['activity_id'])
+                                ->where(function ($q) use ($validated) {
+                                    $q->where('class_id', $validated['class_id'])
+                                        ->orWhereNull('class_id');
+                                })
+                                ->firstOrFail();
+
+                            ResultActivity::create([
+                                'result_id' => $result->id,
+                                'activity_id' => $activityData['activity_id'],
+                                'marks' => $activityData['marks']
+                            ]);
+
+                            $activityMarks += $activityData['marks'];
+                            $activityMax += $activity->full_marks ?? 0;
+                        }
+                    }
+
+                    // GPA
+                    $total = $obtained + $activityMarks;
+                    $totalMax = $maxMarks + $activityMax;
+                    $gpa = $totalMax > 0 ? round(($total / $totalMax) * 4, 2) : 0;
+
+                    $result->update(['gpa' => $gpa]);
                 }
-
-                // GPA
-                $total = $obtained + $activityMarks;
-                $totalMax = $maxMarks + $activityMax;
-                $gpa = $totalMax > 0 ? round(($total / $totalMax) * 4, 2) : 0;
-
-                $result->update(['gpa' => $gpa]);
             }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Class results saved successfully 🎉'
+            ], 201);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to save class results',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        DB::commit();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Class results saved successfully 🎉'
-        ], 201);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Failed to save class results',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
-
-    public function getStudentResults(Request $request,$domain, $studentId, $classId, $examType = null)
+    public function getStudentResults(Request $request, $domain, $studentId, $classId, $examType = null)
     {
         // Validate input
         $request->validate([
@@ -951,7 +950,6 @@ class ResultController extends Controller
             'results' => $data
         ]);
     }
-    
 
     public function getWholeClassResults(Request $request, $domain, $classId)
     {
@@ -966,6 +964,9 @@ class ResultController extends Controller
         // Optional filtering by exam type
         $examType = $request->query('exam_type');
 
+
+
+
         // Fetch class results
         $results = Result::with([
             'student:id,first_name,last_name,roll_number',
@@ -975,9 +976,13 @@ class ResultController extends Controller
             ->where('class_id', $classId)
             ->when($examType, function ($q) use ($examType) {
                 $q->where('exam_type', $examType);
+
+
             })
             ->orderBy('student_id')
             ->get();
+
+        $examDate = $results->first()->exam_date ?? null;
 
         if ($results->isEmpty()) {
             return response()->json([
@@ -1003,10 +1008,11 @@ class ResultController extends Controller
                     'activity_marks' => $activityMarks,
                     'total_marks' => $result->marks_theory + $result->marks_practical,  // + $activityMarks, 
                     'max_marks' =>
-                    ($result->subject->theory_marks ?? 0) +
+                        ($result->subject->theory_marks ?? 0) +
                         ($result->subject->practical_marks ?? 0) +
                         $activityMaxMarks,
                     'gpa' => $result->gpa,
+                    'exam_date' => $result->exam_date,
                     'activities' => $result->activities->map(fn($a) => [
                         'activity_name' => $a->activity->activity_name,
                         'marks_obtained' => $a->marks,
@@ -1028,10 +1034,9 @@ class ResultController extends Controller
             'status' => true,
             'class_id' => $classId,
             'exam_type' => $examType,
+            'exam_date' => $examDate,
             'students' => $grouped
         ]);
     }
-
-
 
 }
