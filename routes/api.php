@@ -73,8 +73,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::apiResource('tenants/{domain}/subjects', SubjectController::class);
     Route::post('tenants/{domain}/extra-curricular', [ExtraCurricularActivityController::class, 'store']);
     Route::put('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'update']);
+    Route::delete('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'delete']);
     
 
+
+    
     //? To create the Classes
     Route::apiResource('tenants/{domain}/classes', ClassController::class)->except(['show', 'index']);
 

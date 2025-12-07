@@ -46,7 +46,7 @@ class ExtraCurricularActivityController extends Controller
     }
 
 
-    public function update(Request $request, $domain,  $id)
+    public function update(Request $request, $domain, $id)
     {
         // Validate incoming request
         $validatedData = $request->validate([
@@ -85,5 +85,36 @@ class ExtraCurricularActivityController extends Controller
             ], 500);
         }
     }
+
+    public function delete(Request $request, $domain, $id)
+    {
+        try {
+            // Find the activity
+            $activity = ExtraCurricularActivity::find($id);
+
+            if (!$activity) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Activity not found',
+                ], 404);
+            }
+
+            // Delete the record
+            $activity->delete();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Activity deleted successfully',
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while deleting the activity.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 
 }
