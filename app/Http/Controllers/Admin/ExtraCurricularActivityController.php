@@ -44,4 +44,46 @@ class ExtraCurricularActivityController extends Controller
             'data' => $activities
         ]);
     }
+
+
+    public function update(Request $request, $domain,  $id)
+    {
+        // Validate incoming request
+        $validatedData = $request->validate([
+            'subject_id' => 'required|exists:subjects,id',
+            'class_id' => 'nullable|exists:classes,id',
+            'activity_name' => 'required|string|max:255',
+            'full_marks' => 'nullable|integer|min:0',
+            'pass_marks' => 'nullable|integer|min:0',
+        ]);
+
+        try {
+            // Find activity
+            $activity = ExtraCurricularActivity::find($id);
+
+            if (!$activity) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Activity not found',
+                ], 404);
+            }
+
+            // Update activity
+            $activity->update($validatedData);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Activity updated successfully',
+                'data' => $activity
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while updating the activity.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

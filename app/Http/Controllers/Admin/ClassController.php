@@ -1,13 +1,11 @@
 <?php
 namespace App\Http\Controllers\Admin;
-
 use App\Http\Controllers\Controller;
 use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-
 class ClassController extends Controller
 {
 
@@ -135,8 +133,6 @@ class ClassController extends Controller
     public function update(Request $request, $domain, $id)
     {
         $schoolClass = SchoolClass::findOrFail($id);
-
-
 
         $data = $request->validate([
             'name' => [
