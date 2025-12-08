@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\SMSController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Admin\WebsiteSettingController;
 use App\Http\Controllers\Government\AllTeachersController;
 use App\Http\Controllers\Government\AnalyticsController;
 use App\Http\Controllers\Government\GovernmentController;
@@ -69,15 +70,28 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::put('/tenants/{domain}/result-settings/{id}', [ResultSettingController::class, 'update']);
 
 
+
+    // ? Update Website Settings
+    Route::put('tenants/{domain}/website-settings/{id}', [WebsiteSettingController::class, 'update']);
+    Route::post('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'store']);
+
+    
+
+
+    // // ? For Website  Settings 
+    // Route::get('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'index']);
+    // Route::apiResource('tenants/{domain}/website-settings', WebsiteSettingController::class);
+
+
     // ?To create the subjects 
     Route::apiResource('tenants/{domain}/subjects', SubjectController::class);
     Route::post('tenants/{domain}/extra-curricular', [ExtraCurricularActivityController::class, 'store']);
     Route::put('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'update']);
     Route::delete('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'delete']);
+
     
 
 
-    
     //? To create the Classes
     Route::apiResource('tenants/{domain}/classes', ClassController::class)->except(['show', 'index']);
 
@@ -102,7 +116,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     //? To filter the results of students based in class and the studentId and classId
     Route::get('tenants/{domain}/students/results/class/{classId}', [ResultController::class, 'resultByClass']);
-    
+
     // Get full result for a specific student (Admin/Teacher)
     // Route::get('tenants/{domain}/students/{studentId}/full-result', [ResultController::class, 'studentResult']);
 
@@ -138,8 +152,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     Route::post('tenants/{domain}/students/results/create', [ResultController::class, 'createResultByTeacher']);
     // To get the data of result
- Route::post('tenants/{domain}/results/class', [ResultController::class, 'createClassResultByTeacher']);
- Route::get('tenants/{domain}/classes/{classId}/results', [ResultController::class, 'getWholeClassResults']);
+    Route::post('tenants/{domain}/results/class', [ResultController::class, 'createClassResultByTeacher']);
+    Route::get('tenants/{domain}/classes/{classId}/results', [ResultController::class, 'getWholeClassResults']);
 
 
 
@@ -176,6 +190,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
     Route::get('tenants/{domain}/admin/events/{id}', [EventController::class, 'show']);
+
+
+
+     // ? For Website  Settings 
+    Route::get('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'index']);
 
 });
 
