@@ -194,7 +194,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 
      // ? For Website  Settings 
-    Route::get('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'index']);
+    
 
 });
 
@@ -204,6 +204,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 Route::middleware(['tenant'])->group(function () {
     // ?To get the Details of the school (Settings)
     Route::get('/tenants/{domain}/settings', [SettingController::class, 'index']);
+    Route::get('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'index']);
 
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
