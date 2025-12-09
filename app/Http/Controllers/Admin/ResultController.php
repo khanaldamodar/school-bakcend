@@ -74,8 +74,8 @@ class ResultController extends Controller
                 'student_id' => 'required|exists:students,id',
                 'class_id' => 'required|exists:classes,id',
                 'subject_id' => 'required|exists:subjects,id',
-                'marks_theory' => 'required|integer|min:0',
-                'marks_practical' => 'required|integer|min:0',
+                'marks_theory' => 'required|numeric|min:0',
+                'marks_practical' => 'required|numeric|min:0',
                 'exam_type' => 'nullable|string|max:255',
                 'exam_date' => 'nullable',
             ]);
@@ -150,8 +150,8 @@ class ResultController extends Controller
         $result = Result::findOrFail($id);
 
         $validated = $request->validate([
-            'marks_theory' => 'sometimes|integer|min:0',
-            'marks_practical' => 'sometimes|integer|min:0',
+            'marks_theory' => 'sometimes|numeric|min:0',
+            'marks_practical' => 'sometimes|numeric|min:0',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable',
         ]);
@@ -425,8 +425,8 @@ class ResultController extends Controller
     //         'exam_date' => 'nullable',
     //         'results' => 'required|array',
     //         'results.*.subject_id' => 'required|exists:subjects,id',
-    //         'results.*.marks_theory' => 'required|integer|min:0',
-    //         'results.*.marks_practical' => 'required|integer|min:0',
+    //         'results.*.marks_theory' => 'required|numeric|min:0',
+    //         'results.*.marks_practical' => 'required|numeric|min:0',
     //     ]);
 
     //     $teacher = Teacher::with('subjects')->where('user_id', $user->id)->firstOrFail();
@@ -733,8 +733,8 @@ class ResultController extends Controller
             'results' => 'required|array|min:1',
             'results.*.student_id' => 'required|exists:students,id',
             'results.*.subject_id' => 'required|exists:subjects,id',
-            'results.*.marks_theory' => 'required|integer|min:0',
-            'results.*.marks_practical' => 'required|integer|min:0',
+            'results.*.marks_theory' => 'required|numeric|min:0',
+            'results.*.marks_practical' => 'required|numeric|min:0',
         ]);
 
         $resultsData = [];
@@ -788,12 +788,12 @@ class ResultController extends Controller
             'students.*.results' => 'required|array',
 
             'students.*.results.*.subject_id' => 'required|exists:subjects,id',
-            'students.*.results.*.marks_theory' => 'required|integer|min:0',
-            'students.*.results.*.marks_practical' => 'required|integer|min:0',
+            'students.*.results.*.marks_theory' => 'required|numeric|min:0',
+            'students.*.results.*.marks_practical' => 'required|numeric|min:0',
 
             'students.*.results.*.activities' => 'nullable|array',
             'students.*.results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
-            'students.*.results.*.activities.*.marks' => 'required|integer|min:0',
+            'students.*.results.*.activities.*.marks' => 'required|numeric|min:0',
         ]);
 
         $teacher = Teacher::with('subjects')
@@ -807,7 +807,7 @@ class ResultController extends Controller
 
                 foreach ($studentData['results'] as $resultData) {
 
-                    // ✅ Prevent duplicate entry
+                    // Prevent duplicate entry
                     $exists = Result::where('student_id', $studentData['student_id'])
                         ->where('class_id', $validated['class_id'])
                         ->where('subject_id', $resultData['subject_id'])
