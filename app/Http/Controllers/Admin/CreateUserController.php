@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoginAttempt;
+use App\Models\LoginHistory;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -100,8 +102,18 @@ class CreateUserController extends Controller
             ], 401);
         }
 
+        // Clear login attempts on successful login
+        LoginAttempt::clearAttempts($credentials['email']);
+
         // Optionally generate a token (if using Laravel Sanctum / Passport)
         $token = $user->createToken('tenant-api-token')->plainTextToken;
+
+        // Record login history
+        LoginHistory::recordLogin(
+            $user->id,
+            $request->ip(),
+            $request->userAgent()
+        );
 
         return response()->json([
             'status' => true,
@@ -115,8 +127,12 @@ class CreateUserController extends Controller
 
      public function logout(Request $request)
     {
+        $user = $request->user();
+        
+        // Record logout in history
+        LoginHistory::recordLogout($user->id);
 
-        $request->user()->currentAccessToken()->delete();
+        $user->currentAccessToken()->delete();
 
         return response()->json([
             'status' => true,

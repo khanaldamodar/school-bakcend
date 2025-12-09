@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\InitializeTenant;
+use App\Http\Middleware\RateLimitLogin;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
        $middleware->alias([
          'tenant'=> InitializeTenant::class,
-         'role'=>RoleMiddleware::class
+         'role'=>RoleMiddleware::class,
+         'rate.limit.login'=>RateLimitLogin::class
         ]);
 
        $middleware->priority([

@@ -48,7 +48,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 //? For School Individuals 
 // ?To Register, login and logut ROutes for school users
 Route::post('/tenants/{domain}/register', [CreateUserController::class, 'register'])->middleware('tenant');
-Route::post('/tenants/{domain}/login', [CreateUserController::class, 'login'])->middleware('tenant');
+Route::post('/tenants/{domain}/login', [CreateUserController::class, 'login'])->middleware(['rate.limit.login', 'tenant']);
 Route::post('/tenants/{domain}/logout', [CreateUserController::class, 'logout'])->middleware('tenant', 'auth:sanctum');
 
 Route::prefix('tenants/{domain}')
