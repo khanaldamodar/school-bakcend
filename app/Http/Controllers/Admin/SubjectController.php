@@ -215,6 +215,56 @@ class SubjectController extends Controller
         ]);
     }
 
+    public function updateClassSubjectTeacher(Request $request, string $domain, int $id)
+    {
+        $request->validate([
+            'teacher_id' => 'required|exists:teachers,id',
+        ]);
+
+        // Check if the assignment exists
+        $assignment = \DB::table('class_subject_teacher')->where('id', $id)->first();
+
+        if (!$assignment) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Assignment not found'
+            ], 404);
+        }
+
+        // Update the teacher assignment
+        \DB::table('class_subject_teacher')
+            ->where('id', $id)
+            ->update([
+                'teacher_id' => $request->teacher_id,
+                'updated_at' => now()
+            ]);
+
+        // Fetch the updated record with related data
+        $updatedAssignment = \DB::table('class_subject_teacher as cst')
+            ->join('subjects as s', 'cst.subject_id', '=', 's.id')
+            ->join('classes as c', 'cst.class_id', '=', 'c.id')
+            ->join('teachers as t', 'cst.teacher_id', '=', 't.id')
+            ->where('cst.id', $id)
+            ->select(
+                'cst.id',
+                'cst.subject_id',
+                's.name as subject_name',
+                'cst.class_id',
+                'c.name as class_name',
+                'cst.teacher_id',
+                't.name as teacher_name',
+                'cst.updated_at',
+                'cst.created_at'
+            )
+            ->first();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Teacher assignment updated successfully',
+            'data' => $updatedAssignment
+        ]);
+    }
+
     public function getClassSubjectTeacher(Request $request)
     {
         $query = \DB::table('class_subject_teacher as cst')

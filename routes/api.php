@@ -160,6 +160,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     Route::get('tenants/{domain}/classes/{classId}/subjects', [SubjectController::class, 'getSubjectsByClass']);
     Route::post('tenants/{domain}/class-subjects', [SubjectController::class, 'storeClassSubjectTeacher']);
+    Route::put('tenants/{domain}/class-subjects/{id}', [SubjectController::class, 'updateClassSubjectTeacher']);
     Route::get('tenants/{domain}/class-subjects-teacher', [SubjectController::class, 'getClassSubjectTeacher']);
 
 
