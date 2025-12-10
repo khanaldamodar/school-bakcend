@@ -77,6 +77,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::post('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'store']);
 
 
+    // ? For adding School Members Mainly for staffs
+    Route::apiResource('tenants/{domain}/school-members', App\Http\Controllers\Admin\SchoolMemberController::class)->except(['index', 'show']);
+
+
 
 
     // // ? For Website  Settings 
@@ -201,6 +205,10 @@ Route::middleware(['tenant'])->group(function () {
     // ?To get the Details of the school (Settings)
     Route::get('/tenants/{domain}/settings', [SettingController::class, 'index']);
     Route::get('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'index']);
+
+    //?  To get the School Members 
+     Route::get('tenants/{domain}/school-members', [App\Http\Controllers\Admin\SchoolMemberController::class, 'index']);
+     Route::get('tenants/{domain}/school-members/{id}', [App\Http\Controllers\Admin\SchoolMemberController::class, 'show']);
 
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);

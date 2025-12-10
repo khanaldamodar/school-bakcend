@@ -181,7 +181,7 @@ class GalleryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $domain,string $id)
+    public function destroy(string $domain, string $id)
     {
         $gallery = Gallery::find($id);
 
