@@ -1000,6 +1000,7 @@ class ResultController extends Controller
                 $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
 
                 return [
+                    'result_id' => $result->id,
                     'subject' => $result->subject->name,
                     'obtained_marks_theory' => $result->marks_theory,
                     'obtained_marks_practical' => $result->marks_practical,
