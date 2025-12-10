@@ -206,6 +206,4 @@ class SchoolMemberController extends Controller
             'errors' => $errors
         ], 422);
     }
-
-
 }

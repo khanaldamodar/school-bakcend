@@ -78,6 +78,7 @@ class ResultController extends Controller
                 'marks_practical' => 'required|numeric|min:0',
                 'exam_type' => 'nullable|string|max:255',
                 'exam_date' => 'nullable',
+                'remark' => 'nullable|string|max:1000',
             ]);
 
             $subject = Subject::findOrFail($validated['subject_id']);
@@ -98,6 +99,7 @@ class ResultController extends Controller
                 'gpa' => $gpa,
                 'exam_type' => $validated['exam_type'] ?? null,
                 'exam_date' => $validated['exam_date'] ?? null,
+                'remark' => $validated['remark'] ?? null,
             ]);
 
             return response()->json([
@@ -154,6 +156,7 @@ class ResultController extends Controller
             'marks_practical' => 'sometimes|numeric|min:0',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable',
+            'remark' => 'nullable|string|max:1000',
         ]);
 
         // Permission check for teacher
@@ -782,6 +785,7 @@ class ResultController extends Controller
             'class_id' => 'required|exists:classes,id',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable|date',
+            'remarks'=>'nullable|string|max:1000',
 
             'students' => 'required|array',
             'students.*.student_id' => 'required|exists:students,id',
@@ -835,7 +839,8 @@ class ResultController extends Controller
                         'marks_practical' => $resultData['marks_practical'],
                         'exam_type' => $validated['exam_type'] ?? null,
                         'exam_date' => $validated['exam_date'] ?? null,
-                        'gpa' => 0
+                        'gpa' => 0,
+                        'remark' => $validated['remarks'] ?? null,
                     ]);
 
 
@@ -1005,6 +1010,7 @@ class ResultController extends Controller
                     'obtained_marks_theory' => $result->marks_theory,
                     'obtained_marks_practical' => $result->marks_practical,
                     'obtained_activity_marks' => $activityMarks,
+                    'remarks' => $result->remarks,
                     'obtained_total_marks' => $result->marks_theory + $result->marks_practical,  // + $activityMarks, 
                     'full_marks_theory' =>
                         ($result->subject->theory_marks ?? 0),
