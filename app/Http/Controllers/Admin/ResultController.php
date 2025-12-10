@@ -951,6 +951,7 @@ class ResultController extends Controller
         ]);
     }
 
+
     public function getWholeClassResults(Request $request, $domain, $classId)
     {
         // Validate class
@@ -963,9 +964,6 @@ class ResultController extends Controller
 
         // Optional filtering by exam type
         $examType = $request->query('exam_type');
-
-
-
 
         // Fetch class results
         $results = Result::with([

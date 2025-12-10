@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CreateUserController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\ExtraCurricularActivityController;
+use App\Http\Controllers\Admin\GalleryController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ResultController;
@@ -75,7 +76,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::put('tenants/{domain}/website-settings/{id}', [WebsiteSettingController::class, 'update']);
     Route::post('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'store']);
 
-    
+
 
 
     // // ? For Website  Settings 
@@ -89,7 +90,15 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::put('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'update']);
     Route::delete('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'delete']);
 
-    
+
+
+    // ? For Uploading Gallery Images
+    Route::post('tenants/{domain}/gallery', [GalleryController::class, 'store']);
+    Route::post('tenants/{domain}/gallery/{galleryId}', [GalleryController::class, 'update']);
+    Route::delete('tenants/{domain}/gallery/{galleryId}', [GalleryController::class, 'destroy']);
+
+
+
 
 
     //? To create the Classes
@@ -194,8 +203,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 
 
-     // ? For Website  Settings 
-    
+    // ? For Website  Settings 
+
 
 });
 
@@ -221,6 +230,11 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('tenants/{domain}/reports', [ReportController::class, 'getReports']);
     Route::post('tenants/{domain}/send-sms', [SMSController::class, 'send']);
     Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class, 'sendToTeachers']);
+
+
+    //? Gallery routes for website
+    Route::get('tenants/{domain}/gallery', [GalleryController::class, 'index']);
+    Route::get('tenants/{domain}/gallery/{id}', [GalleryController::class, 'show']);
 });
 
 // ?Register New Government account
