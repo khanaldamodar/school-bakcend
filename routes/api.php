@@ -122,7 +122,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 
     //? To create te Result 
-    Route::apiResource('tenants/{domain}/students/results', ResultController::class)->except('store');
+    Route::apiResource('tenants/{domain}/students/results', ResultController::class)->except('store','destroy');
 
     // ? Get the Individual Student Result
     Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'getStudentResultsById']);
@@ -196,7 +196,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
     Route::get('tenants/{domain}/admin/events/{id}', [EventController::class, 'show']);
 
-    // ? For Website  Settings 
+    // Delete Result (Admin/Teacher)
+    Route::delete('tenants/{domain}/students/results/{id}', [ResultController::class, 'destroy']);
 });
 
 
