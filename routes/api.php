@@ -166,48 +166,34 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
 
 
-
     Route::get('tenants/{domain}/classes/{classId}/subjects', [SubjectController::class, 'getSubjectsByClass']);
     Route::post('tenants/{domain}/class-subjects', [SubjectController::class, 'storeClassSubjectTeacher']);
     Route::put('tenants/{domain}/class-subjects/{id}', [SubjectController::class, 'updateClassSubjectTeacher']);
     Route::get('tenants/{domain}/class-subjects-teacher', [SubjectController::class, 'getClassSubjectTeacher']);
-
 
     //? To view the result for the teachers 
     Route::get('tenants/{domain}/teachers/{teacherId}/results', [ResultController::class, 'resultsByTeacher']);
 
     Route::get('tenants/{domain}/results/{classId}', [ResultController::class, 'classLedger']);
 
-
     // ? Bulk Upload
     Route::post('tenants/{domain}/students/bulk-upload', [StudentController::class, 'bulkUpload']);
     Route::post('tenants/{domain}/students/results/bulk-upload', [ResultController::class, 'bulkStore']);
 
-
 });
-
 
 // ?For the students and parents
 Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'])->group(function () {
     Route::post('tenants/{domain}/students/profile', [StudentController::class, 'profile']);
     Route::get('tenants/{domain}/students/{id}', [StudentController::class, 'show']);
 
-
     Route::get('tenants/{domain}/students/result', [ResultController::class, 'studentResult']);
-
-
-
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);
     Route::get('tenants/{domain}/admin/events/{id}', [EventController::class, 'show']);
 
-
-
     // ? For Website  Settings 
-
-
 });
-
 
 
 // No need to login Routes
