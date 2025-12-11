@@ -129,7 +129,7 @@ class ResultController extends Controller
                 'percentage' => $calculatedResult['percentage'],
                 'exam_type' => $validated['exam_type'] ?? null,
                 'exam_date' => $validated['exam_date'] ?? null,
-                'remark' => $validated['remark'] ?? null,
+                'remarks' => $validated['remarks'] ?? null,
             ]);
 
             return response()->json([
