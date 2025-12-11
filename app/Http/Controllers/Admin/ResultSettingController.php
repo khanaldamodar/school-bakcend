@@ -93,6 +93,7 @@ class ResultSettingController extends Controller
             'total_terms' => 'sometimes|integer|min:1|max:12',
             'calculation_method' => 'sometimes|in:simple,weighted',
             'result_type' => 'sometimes|in:gpa,percentage',
+            // 'setting_id' => 'sometimes|exists:settings,id',
             'term_weights' => 'nullable|array',
             'evaluation_per_term' => 'sometimes|boolean',
             'terms' => 'nullable|array',

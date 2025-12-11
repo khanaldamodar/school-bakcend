@@ -10,6 +10,7 @@ use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Student;
 use App\Models\Admin\Subject;
 use App\Models\Admin\Teacher;
+use App\Services\ResultCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -66,20 +67,40 @@ class ResultController extends Controller
     {
         try {
             $user = $request->user();
-            // dd($user->id);
             $teacherId = Teacher::where('user_id', $user->id)->value('id');
-            // dd($teacherId);
+            
+            // Initialize ResultCalculationService
+            $calculationService = new ResultCalculationService();
+            
+            // Validate ResultSetting exists
+            try {
+                $resultSetting = $calculationService->getResultSetting();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => false,
+                    'message' => $e->getMessage()
+                ], 400);
+            }
 
             $validated = $request->validate([
                 'student_id' => 'required|exists:students,id',
                 'class_id' => 'required|exists:classes,id',
                 'subject_id' => 'required|exists:subjects,id',
+                'term_id' => 'required|exists:terms,id',
                 'marks_theory' => 'required|numeric|min:0',
                 'marks_practical' => 'required|numeric|min:0',
                 'exam_type' => 'nullable|string|max:255',
                 'exam_date' => 'nullable',
                 'remark' => 'nullable|string|max:1000',
             ]);
+            
+            // Validate term_id exists in ResultSetting
+            if (!$calculationService->validateTerm($validated['term_id'], $resultSetting)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Invalid term_id. Term does not exist in Result Setting.'
+                ], 400);
+            }
 
             $subject = Subject::findOrFail($validated['subject_id']);
             $max_theory = $subject->theory_marks ?? 0;
@@ -87,16 +108,25 @@ class ResultController extends Controller
 
             $marks_obtained = $validated['marks_theory'] + $validated['marks_practical'];
             $max_marks = $max_theory + $max_practical;
-            $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
+            
+            // Use ResultCalculationService for calculation
+            $calculatedResult = $calculationService->calculateResult(
+                new Result(),
+                $marks_obtained,
+                $max_marks,
+                $resultSetting
+            );
 
             $result = Result::create([
                 'student_id' => $validated['student_id'],
                 'class_id' => $validated['class_id'],
                 'subject_id' => $validated['subject_id'],
-                'teacher_id' => $user ? $user->id : null,
+                'teacher_id' => $teacherId,
+                'term_id' => $validated['term_id'],
                 'marks_theory' => $validated['marks_theory'],
                 'marks_practical' => $validated['marks_practical'],
-                'gpa' => $gpa,
+                'gpa' => $calculatedResult['gpa'],
+                'percentage' => $calculatedResult['percentage'],
                 'exam_type' => $validated['exam_type'] ?? null,
                 'exam_date' => $validated['exam_date'] ?? null,
                 'remark' => $validated['remark'] ?? null,
@@ -150,6 +180,19 @@ class ResultController extends Controller
         $user = $request->user();
 
         $result = Result::findOrFail($id);
+        
+        // Initialize ResultCalculationService
+        $calculationService = new ResultCalculationService();
+        
+        // Get ResultSetting
+        try {
+            $resultSetting = $calculationService->getResultSetting();
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
 
         $validated = $request->validate([
             'marks_theory' => 'sometimes|numeric|min:0',
@@ -189,14 +232,41 @@ class ResultController extends Controller
         if (isset($validated['exam_type'])) {
             $result->exam_type = $validated['exam_type'];
         }
+        
+        // Update exam date if provided
+        if (isset($validated['exam_date'])) {
+            $result->exam_date = $validated['exam_date'];
+        }
+        
+        // Update remark if provided
+        if (isset($validated['remark'])) {
+            $result->remark = $validated['remark'];
+        }
 
-        // Recalculate GPA
-        $subject = $result->subject;
-        $max_theory = $subject->theory_marks ?? 0;
-        $max_practical = $subject->practical_marks ?? 0;
-        $marks_obtained = $result->marks_theory + $result->marks_practical;
-        $max_marks = $max_theory + $max_practical;
-        $result->gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
+        // Recalculate if marks changed
+        if (isset($validated['marks_theory']) || isset($validated['marks_practical'])) {
+            $subject = $result->subject;
+            $max_theory = $subject->theory_marks ?? 0;
+            $max_practical = $subject->practical_marks ?? 0;
+            
+            // Get activity marks
+            $activityMarks = $result->activities->sum('marks');
+            $activityMax = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+            
+            $marks_obtained = $result->marks_theory + $result->marks_practical + $activityMarks;
+            $max_marks = $max_theory + $max_practical + $activityMax;
+            
+            // Use ResultCalculationService for recalculation
+            $calculatedResult = $calculationService->calculateResult(
+                $result,
+                $marks_obtained,
+                $max_marks,
+                $resultSetting
+            );
+            
+            $result->gpa = $calculatedResult['gpa'];
+            $result->percentage = $calculatedResult['percentage'];
+        }
 
         $result->save();
 
@@ -780,9 +850,23 @@ class ResultController extends Controller
     public function createClassResultByTeacher(Request $request)
     {
         $user = $request->user();
+        
+        // Initialize ResultCalculationService
+        $calculationService = new ResultCalculationService();
+        
+        // Validate ResultSetting exists
+        try {
+            $resultSetting = $calculationService->getResultSetting();
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
 
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
+            'term_id' => 'required|exists:terms,id',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable|date',
             'remarks'=>'nullable|string|max:1000',
@@ -799,6 +883,17 @@ class ResultController extends Controller
             'students.*.results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
             'students.*.results.*.activities.*.marks' => 'required|numeric|min:0',
         ]);
+        
+        // Validate term_id exists in ResultSetting
+        if (!$calculationService->validateTerm($validated['term_id'], $resultSetting)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid term_id. Term does not exist in Result Setting.'
+            ], 400);
+        }
+        
+        // Check if activities are allowed for this term
+        $canAddActivities = $calculationService->canAddActivities($validated['term_id'], $resultSetting);
 
         $teacher = Teacher::with('subjects')
             ->where('user_id', $user->id)->firstOrFail();
@@ -815,12 +910,22 @@ class ResultController extends Controller
                     $exists = Result::where('student_id', $studentData['student_id'])
                         ->where('class_id', $validated['class_id'])
                         ->where('subject_id', $resultData['subject_id'])
-                        ->where('exam_type', $validated['exam_type'])
+                        ->where('term_id', $validated['term_id'])
                         ->exists();
 
 
                     if ($exists) {
-                        throw new \Exception("Result already exists for some students and subjects.");
+                        throw new \Exception("Result already exists for some students and subjects in this term.");
+                    }
+                    
+                    // Validate activities if provided
+                    if (!empty($resultData['activities']) && !$canAddActivities) {
+                        throw new \Exception(
+                            "Activities cannot be added for this term. " .
+                            ($resultSetting->evaluation_per_term 
+                                ? "Activities are allowed for all terms." 
+                                : "Activities can only be added for the last term exam.")
+                        );
                     }
 
                     // SUBJECT MARKS
@@ -829,23 +934,52 @@ class ResultController extends Controller
                     $maxMarks = ($subject->theory_marks ?? 0) + ($subject->practical_marks ?? 0);
                     $obtained = $resultData['marks_theory'] + $resultData['marks_practical'];
 
+                    $activityMarks = 0;
+                    $activityMax = 0;
+
+                    // Calculate activity marks if provided
+                    if (!empty($resultData['activities'])) {
+                        foreach ($resultData['activities'] as $activityData) {
+                            $activity = ExtraCurricularActivity::where('id', $activityData['activity_id'])
+                                ->where(function ($q) use ($validated) {
+                                    $q->where('class_id', $validated['class_id'])
+                                        ->orWhereNull('class_id');
+                                })
+                                ->firstOrFail();
+
+                            $activityMarks += $activityData['marks'];
+                            $activityMax += $activity->full_marks ?? 0;
+                        }
+                    }
+
+                    // Calculate total
+                    $total = $obtained + $activityMarks;
+                    $totalMax = $maxMarks + $activityMax;
+
+                    // Use ResultCalculationService for calculation
+                    $calculatedResult = $calculationService->calculateResult(
+                        new Result(),
+                        $total,
+                        $totalMax,
+                        $resultSetting
+                    );
+
                     // CREATE RESULT
                     $result = Result::create([
                         'student_id' => $studentData['student_id'],
                         'class_id' => $validated['class_id'],
                         'subject_id' => $resultData['subject_id'],
                         'teacher_id' => $teacher->id,
+                        'term_id' => $validated['term_id'],
                         'marks_theory' => $resultData['marks_theory'],
                         'marks_practical' => $resultData['marks_practical'],
                         'exam_type' => $validated['exam_type'] ?? null,
                         'exam_date' => $validated['exam_date'] ?? null,
-                        'gpa' => 0,
+                        'gpa' => $calculatedResult['gpa'],
+                        'percentage' => $calculatedResult['percentage'],
                         'remark' => $validated['remarks'] ?? null,
                     ]);
 
-
-                    $activityMarks = 0;
-                    $activityMax = 0;
 
                     // SAVE ACTIVITIES
                     if (!empty($resultData['activities'])) {
@@ -863,18 +997,8 @@ class ResultController extends Controller
                                 'activity_id' => $activityData['activity_id'],
                                 'marks' => $activityData['marks']
                             ]);
-
-                            $activityMarks += $activityData['marks'];
-                            $activityMax += $activity->full_marks ?? 0;
                         }
                     }
-
-                    // GPA
-                    $total = $obtained + $activityMarks;
-                    $totalMax = $maxMarks + $activityMax;
-                    $gpa = $totalMax > 0 ? round(($total / $totalMax) * 4, 2) : 0;
-
-                    $result->update(['gpa' => $gpa]);
                 }
             }
 
@@ -1040,6 +1164,70 @@ class ResultController extends Controller
             'exam_type' => $examType,
             'exam_date' => $examDate,
             'students' => $grouped
+        ]);
+    }
+
+    /**
+     * Generate final weighted result for a student
+     * Only applicable when calculation_method is 'weighted'
+     */
+    public function generateFinalResult(Request $request, $domain)
+    {
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'class_id' => 'required|exists:classes,id',
+        ]);
+
+        // Initialize ResultCalculationService
+        $calculationService = new ResultCalculationService();
+
+        // Get ResultSetting
+        try {
+            $resultSetting = $calculationService->getResultSetting();
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+
+        // Check if calculation method is weighted
+        if ($resultSetting->calculation_method !== 'weighted') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Final result generation is only available for weighted calculation method.'
+            ], 400);
+        }
+
+        // Calculate weighted final result
+        $finalResultData = $calculationService->calculateWeightedFinalResult(
+            $validated['student_id'],
+            $validated['class_id'],
+            $resultSetting
+        );
+
+        if (!$finalResultData) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Cannot calculate final result. Ensure all term results are available.'
+            ], 400);
+        }
+
+        // Get student info
+        $student = Student::with('class')->findOrFail($validated['student_id']);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Final result calculated successfully',
+            'data' => [
+                'student' => [
+                    'id' => $student->id,
+                    'name' => $student->first_name . ' ' . $student->last_name,
+                    'class' => $student->class->name ?? 'N/A',
+                    'roll_number' => $student->roll_number,
+                ],
+                'final_result' => $finalResultData
+            ]
         ]);
     }
 
