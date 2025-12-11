@@ -91,7 +91,7 @@ class ResultController extends Controller
                 'marks_practical' => 'required|numeric|min:0',
                 'exam_type' => 'nullable|string|max:255',
                 'exam_date' => 'nullable',
-                'remark' => 'nullable|string|max:1000',
+                'remarks' => 'nullable|string|max:1000',
             ]);
             
             // Validate term_id exists in ResultSetting
@@ -199,7 +199,7 @@ class ResultController extends Controller
             'marks_practical' => 'sometimes|numeric|min:0',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable',
-            'remark' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
         // Permission check for teacher
@@ -239,8 +239,8 @@ class ResultController extends Controller
         }
         
         // Update remark if provided
-        if (isset($validated['remark'])) {
-            $result->remark = $validated['remark'];
+        if (isset($validated['remarks'])) {
+            $result->remarks = $validated['remarks'];
         }
 
         // Recalculate if marks changed
