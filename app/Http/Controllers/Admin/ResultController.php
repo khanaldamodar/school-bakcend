@@ -270,6 +270,9 @@ class ResultController extends Controller
         }
 
         $result->save();
+        
+        // Update final result
+        $this->updateFinalResult($result->student_id, $result->class_id);
 
         return response()->json([
             'status' => true,
@@ -1004,6 +1007,13 @@ class ResultController extends Controller
                 }
             }
 
+
+            
+            // Update final results for all affected students
+            foreach ($validated['students'] as $studentData) {
+                $this->updateFinalResult($studentData['student_id'], $validated['class_id']);
+            }
+
             DB::commit();
 
             return response()->json([
@@ -1064,6 +1074,7 @@ class ResultController extends Controller
                 'total_max_marks' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
                 'gpa' => $result->gpa,
                 'percentage' => $result->percentage,
+                'final_result' => $result->final_result,
                 'exam_type' => $result->exam_type,
                 'exam_date' => $result->exam_date,
                 'activities' => $result->activities->map(fn($a) => [
@@ -1169,7 +1180,9 @@ class ResultController extends Controller
                         ($result->subject->theory_marks ?? 0),
                     'full_marks_practical' => ($result->subject->practical_marks ?? 0),
                     'gpa' => $result->gpa,
+                    'gpa' => $result->gpa,
                     'percentage' => $result->percentage,
+                    'final_result' => $result->final_result,
                     'exam_date' => $result->exam_date,
                     'activities' => $result->activities->map(fn($a) => [
                         'activity_name' => $a->activity->activity_name,
@@ -1235,6 +1248,7 @@ class ResultController extends Controller
             ], 400);
         }
 
+
         // Calculate weighted final result
         $finalResultData = $calculationService->calculateWeightedFinalResult(
             $validated['student_id'],
@@ -1264,6 +1278,104 @@ class ResultController extends Controller
                 ],
                 'final_result' => $finalResultData
             ]
+        ]);
+    }
+
+    /**
+     * Helper to update final result for a student
+     */
+    private function updateFinalResult($studentId, $classId)
+    {
+        try {
+            $calculationService = new ResultCalculationService();
+            if (!$calculationService->validateResultSetting()) return;
+            
+            $resultSetting = $calculationService->getResultSetting();
+            
+            // Only proceed if weighted
+            if ($resultSetting->calculation_method !== 'weighted') return;
+
+            // Calculate
+            $data = $calculationService->calculateWeightedFinalResult($studentId, $classId, $resultSetting);
+
+            if ($data && isset($data['final_result'])) {
+                // Update all results for this student/class with the final result
+                Result::where('student_id', $studentId)
+                    ->where('class_id', $classId)
+                    ->update(['final_result' => $data['final_result']]);
+            }
+        } catch (\Exception $e) {
+            // Silently fail or log, don't block the main request
+            \Log::error('Failed to update final result: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate final weighted result for the whole class
+     */
+    public function generateClassFinalResult(Request $request, $domain, $classId)
+    {
+        // Initialize ResultCalculationService
+        $calculationService = new ResultCalculationService();
+
+        // Get ResultSetting
+        try {
+            $resultSetting = $calculationService->getResultSetting();
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+
+        // Check if calculation method is weighted
+        if ($resultSetting->calculation_method !== 'weighted') {
+            return response()->json([
+                'status' => false,
+                'message' => 'Class final result generation is only available for weighted calculation method.'
+            ], 400);
+        }
+
+        // Fetch all students in the class
+        $students = Student::where('class_id', $classId)->pluck('id');
+
+        if ($students->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No students found in this class.'
+            ], 404);
+        }
+
+        $successCount = 0;
+        $errors = [];
+
+        foreach ($students as $studentId) {
+            // Calculate weighted final result
+            $finalResultData = $calculationService->calculateWeightedFinalResult(
+                $studentId,
+                $classId,
+                $resultSetting
+            );
+
+            if ($finalResultData && isset($finalResultData['final_result'])) {
+                 // Update all results for this student/class with the final result
+                 Result::where('student_id', $studentId)
+                    ->where('class_id', $classId)
+                    ->update(['final_result' => $finalResultData['final_result']]);
+                
+                $successCount++;
+            } else {
+                // Optionally track failures (e.g., missing terms)
+                // $errors[] = "Student ID $studentId: Incomplete term results.";
+            }
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => "Final result generated for $successCount students.",
+            'total_students' => $students->count(),
+            'generated_count' => $successCount,
+            // 'errors' => $errors
         ]);
     }
 }

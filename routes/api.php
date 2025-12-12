@@ -151,6 +151,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 // ?For the Teachers and admin
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(function () {
+
+
     Route::post('tenants/{domain}/teachers/me', [TeacherController::class, 'me']);
     Route::get('tenants/{domain}/result-settings', [ResultSettingController::class, 'index']);
 
@@ -183,6 +185,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     // ? Bulk Upload
     Route::post('tenants/{domain}/students/bulk-upload', [StudentController::class, 'bulkUpload']);
     Route::post('tenants/{domain}/students/results/bulk-upload', [ResultController::class, 'bulkStore']);
+
+    // ? To generate final result
+    Route::post('tenants/{domain}/classes/{classId}/generate-final', [ResultController::class, 'generateClassFinalResult']);
+
+
 
 });
 
