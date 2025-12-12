@@ -768,6 +768,7 @@ class ResultController extends Controller
                     'marks_practical' => $result->marks_practical,
                     'max_practical' => $result->subject->practical_marks ?? 0,
                     'gpa' => $result->gpa,
+                    'percentage' => $result->percentage,
                     'exam_type' => $result->exam_type,
                     'teacher_name' => $result->teacher->name ?? 'N/A',
                     'class_name' => $result->class->name ?? 'N/A',
@@ -1061,6 +1062,7 @@ class ResultController extends Controller
                 'total_marks_obtained' => $result->marks_theory + $result->marks_practical + $activityMarks,
                 'total_max_marks' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
                 'gpa' => $result->gpa,
+                'percentage' => $result->percentage,
                 'exam_type' => $result->exam_type,
                 'exam_date' => $result->exam_date,
                 'activities' => $result->activities->map(fn($a) => [
@@ -1118,8 +1120,32 @@ class ResultController extends Controller
             ], 404);
         }
 
+        // Calculate Ranks per Exam Type
+        $ranksByExam = $results->groupBy('exam_type')->map(function ($examResults) {
+            $studentScores = $examResults->groupBy('student_id')->map(function ($items) {
+                return $items->sum(function ($result) {
+                    return $result->marks_theory + $result->marks_practical + $result->activities->sum('marks');
+                });
+            })->sortDesc();
+
+            $rank = 1;
+            $ranks = [];
+            $prevScore = null;
+            $count = 0;
+
+            foreach ($studentScores as $studentId => $score) {
+                $count++;
+                if ($prevScore !== $score) {
+                    $rank = $count;
+                }
+                $ranks[$studentId] = $rank;
+                $prevScore = $score;
+            }
+            return $ranks;
+        });
+
         // Group results by student
-        $grouped = $results->groupBy('student_id')->map(function ($studentResults) {
+        $grouped = $results->groupBy('student_id')->map(function ($studentResults, $studentId) use ($ranksByExam) {
 
             $student = $studentResults->first()->student;
 
@@ -1132,6 +1158,7 @@ class ResultController extends Controller
                     'result_id' => $result->id,
                     'subject' => $result->subject->name,
                     'theory_pass_marks' => $result->subject->theory_pass_marks,
+                    'practical_pass_marks' => $result->activities->sum(fn($a) => $a->activity->pass_marks ?? 0),
                     'obtained_marks_theory' => $result->marks_theory,
                     'obtained_marks_practical' => $result->marks_practical,
                     'obtained_activity_marks' => $activityMarks,
@@ -1141,6 +1168,7 @@ class ResultController extends Controller
                         ($result->subject->theory_marks ?? 0),
                     'full_marks_practical' => ($result->subject->practical_marks ?? 0),
                     'gpa' => $result->gpa,
+                    'percentage' => $result->percentage,
                     'exam_date' => $result->exam_date,
                     'activities' => $result->activities->map(fn($a) => [
                         'activity_name' => $a->activity->activity_name,
@@ -1155,7 +1183,13 @@ class ResultController extends Controller
                 'student_id' => $student->id,
                 'student_name' => $student->first_name . ' ' . $student->last_name,
                 'roll_no' => $student->roll_number,
-                'subjects' => $subjects
+                'subjects' => $subjects,
+                'ranks' => $studentResults->pluck('exam_type')->unique()->map(function ($examType) use ($ranksByExam, $studentId) {
+                    return [
+                        'exam_type' => $examType,
+                        'rank' => $ranksByExam[$examType][$studentId] ?? null
+                    ];
+                })->values()
             ];
         })->values();
 
