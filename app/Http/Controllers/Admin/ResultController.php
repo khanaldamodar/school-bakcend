@@ -179,6 +179,7 @@ class ResultController extends Controller
     {
         $user = $request->user();
 
+        /** @var Result $result */
         $result = Result::findOrFail($id);
         
         // Initialize ResultCalculationService

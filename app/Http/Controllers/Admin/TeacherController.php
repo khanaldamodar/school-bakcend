@@ -347,7 +347,7 @@ class TeacherController extends Controller
 
         if (!$teacher) {
             return response()->json([
-                'status' => false,
+                'status' => true,
                 'message' => 'Teacher profile not found'
             ], 404);
         }
@@ -363,7 +363,7 @@ class TeacherController extends Controller
                 $classes[$classId] = [
                     'id' => $cls->id,
                     'name' => $cls->name,
-                    'is_class_teacher' => $teacher->class_teacher_of == $cls->id,
+                    'is_class_teacher' => ($teacher->classTeacherOf->id ?? null) == $cls->id,
                     'subjects' => [],
                 ];
             }
