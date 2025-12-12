@@ -47,15 +47,15 @@ class Result extends Model
         return $this->belongsTo(Student::class, 'student_id');
     }
 
-public function activities()
-{
-    return $this->hasMany(ResultActivity::class);
-}
+    public function activities()
+    {
+        return $this->hasMany(ResultActivity::class);
+    }
 
-public function term()
-{
-    return $this->belongsTo(Term::class, 'term_id');
-}
+    public function term()
+    {
+        return $this->belongsTo(Term::class, 'term_id');
+    }
 
 
 

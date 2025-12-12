@@ -1131,6 +1131,7 @@ class ResultController extends Controller
                 return [
                     'result_id' => $result->id,
                     'subject' => $result->subject->name,
+                    'theory_pass_marks' => $result->subject->theory_pass_marks,
                     'obtained_marks_theory' => $result->marks_theory,
                     'obtained_marks_practical' => $result->marks_practical,
                     'obtained_activity_marks' => $activityMarks,
@@ -1230,5 +1231,4 @@ class ResultController extends Controller
             ]
         ]);
     }
-
 }
