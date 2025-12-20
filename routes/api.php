@@ -1,4 +1,5 @@
 <?php
+use App\Http\Controllers\Admin\AnalyticalReportController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\CreateUserController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -65,6 +66,8 @@ Route::prefix('tenants/{domain}')
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
+
+
     // ? To update the settings of the school by admin 
     Route::put('/tenants/{domain}/settings', [SettingController::class, 'update']);
     Route::post('/tenants/{domain}/result-settings', [ResultSettingController::class, 'store']);
@@ -90,6 +93,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // ?To create the subjects 
     Route::apiResource('tenants/{domain}/subjects', SubjectController::class);
+    Route::post('tenants/{domain}/extra-curricular/bulk', [ExtraCurricularActivityController::class, 'bulkStore']);
     Route::post('tenants/{domain}/extra-curricular', [ExtraCurricularActivityController::class, 'store']);
     Route::put('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'update']);
     Route::delete('tenants/{domain}/extra-curricular/{curricularId}', [ExtraCurricularActivityController::class, 'delete']);
@@ -122,7 +126,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 
     //? To create te Result 
-    Route::apiResource('tenants/{domain}/students/results', ResultController::class)->except('store','destroy');
+    Route::apiResource('tenants/{domain}/students/results', ResultController::class)->except('store', 'destroy');
 
     // ? Get the Individual Student Result
     Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'getStudentResultsById']);
@@ -170,8 +174,6 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     Route::post('tenants/{domain}/results/class', [ResultController::class, 'createClassResultByTeacher']);
     Route::get('tenants/{domain}/classes/{classId}/results', [ResultController::class, 'getWholeClassResults']);
 
-
-
     Route::get('tenants/{domain}/classes/{classId}/subjects', [SubjectController::class, 'getSubjectsByClass']);
     Route::post('tenants/{domain}/class-subjects', [SubjectController::class, 'storeClassSubjectTeacher']);
     Route::put('tenants/{domain}/class-subjects/{id}', [SubjectController::class, 'updateClassSubjectTeacher']);
@@ -188,9 +190,6 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     // ? To generate final result
     Route::post('tenants/{domain}/classes/{classId}/generate-final', [ResultController::class, 'generateClassFinalResult']);
-
-
-
 });
 
 // ?For the students and parents
@@ -210,13 +209,16 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
+
+    // ? Analytical Report
+    Route::get('tenants/{domain}/analytical-report', [AnalyticalReportController::class, 'index']);
     // ?To get the Details of the school (Settings)
     Route::get('/tenants/{domain}/settings', [SettingController::class, 'index']);
     Route::get('tenants/{domain}/website-settings', [WebsiteSettingController::class, 'index']);
 
     //?  To get the School Members 
-     Route::get('tenants/{domain}/school-members', [App\Http\Controllers\Admin\SchoolMemberController::class, 'index']);
-     Route::get('tenants/{domain}/school-members/{id}', [App\Http\Controllers\Admin\SchoolMemberController::class, 'show']);
+    Route::get('tenants/{domain}/school-members', [App\Http\Controllers\Admin\SchoolMemberController::class, 'index']);
+    Route::get('tenants/{domain}/school-members/{id}', [App\Http\Controllers\Admin\SchoolMemberController::class, 'show']);
 
     // To get the events
     Route::get('tenants/{domain}/events', [EventController::class, 'index']);

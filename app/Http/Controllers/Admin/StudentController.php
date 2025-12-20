@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use App\Services\TenantLogger;
 
 class StudentController extends Controller
 {
@@ -58,6 +60,7 @@ class StudentController extends Controller
 
         // Get the database name of the system
         $tenantDomain = tenant()->database;
+        TenantLogger::studentInfo('Creating student', ['tenant' => $tenantDomain, 'request_ip' => $request->ip()]);
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -145,39 +148,54 @@ class StudentController extends Controller
             $student->save();
 
             // Attach Parents
+            // Optimization: Fetch existing users and parents in one go
+            $parentEmails = collect($validated['parents'])->pluck('email')->unique();
+            $existingUsers = User::whereIn('email', $parentEmails)->get()->keyBy('email');
+            $existingParents = ParentModel::whereIn('email', $parentEmails)->get()->keyBy('email');
+            
+            $parentIds = [];
+
             foreach ($validated['parents'] as $parentData) {
 
-                $parentUser = User::firstOrCreate(
-                    ['email' => $parentData['email']],
-                    [
+                // 1. Handle User Account
+                if ($existingUsers->has($parentData['email'])) {
+                    $parentUser = $existingUsers[$parentData['email']];
+                } else {
+                    $parentUser = User::create([
                         'name' => $parentData['first_name'] . ' ' . ($parentData['last_name'] ?? ''),
                         'email' => $parentData['email'],
                         'phone' => $parentData['phone'] ?? null,
-                        'password' => bcrypt($parentData['phone']),// stored only in users table
+                        'password' => bcrypt($parentData['phone']), // This is still slow but unavoidable if we need new users
                         'role' => 'parent',
-                    ]
-                );
+                    ]);
+                    // Add to local cache
+                    $existingUsers->put($parentUser->email, $parentUser);
+                }
 
-
-                $parent = ParentModel::firstOrCreate(
-                    ['email' => $parentData['email']], // check if parent already exists by email
-                    [
+                // 2. Handle Parent Model
+                if ($existingParents->has($parentData['email'])) {
+                    $parent = $existingParents[$parentData['email']];
+                } else {
+                    $parent = ParentModel::create([
+                        'email' => $parentData['email'],
                         'first_name' => $parentData['first_name'],
                         'last_name' => $parentData['last_name'] ?? null,
                         'phone' => $parentData['phone'] ?? null,
                         'relation' => $parentData['relation'],
                         'user_id' => $parentUser->id
-                    ]
-                );
+                    ]);
+                    $existingParents->put($parent->email, $parent);
+                }
 
-
-
-                // Link parent to student (avoid duplicates)
-                $student->parents()->syncWithoutDetaching([$parent->id]);
+                $parentIds[] = $parent->id;
             }
+
+            // Sync updated parents
+            $student->parents()->syncWithoutDetaching($parentIds);
 
             DB::commit();
 
+            TenantLogger::studentInfo('Student created successfully', ['student_id' => $student->id, 'tenant' => $tenantDomain]);
             return response()->json([
                 'status' => true,
                 'message' => 'Student and parent(s) created successfully',
@@ -186,6 +204,8 @@ class StudentController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Student creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString(), 'tenant' => $tenantDomain]);
+            TenantLogger::studentError('Student creation failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString(), 'tenant' => $tenantDomain]);
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong',
@@ -214,6 +234,7 @@ class StudentController extends Controller
     public function update(Request $request, $domain, string $id)
     {
         $student = Student::findOrFail($id);
+        TenantLogger::studentInfo('Updating student', ['student_id' => $id, 'tenant' => $domain]);
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
@@ -274,6 +295,7 @@ class StudentController extends Controller
 
             DB::commit();
 
+            TenantLogger::studentInfo('Student updated successfully', ['student_id' => $id]);
             return response()->json([
                 'status' => true,
                 'message' => 'Student updated successfully',
@@ -282,6 +304,8 @@ class StudentController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Student update failed', ['student_id' => $id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            TenantLogger::studentError('Student update failed', ['student_id' => $id, 'error' => $e->getMessage()]);
             return response()->json([
                 'status' => false,
                 'message' => 'Update failed',
@@ -368,9 +392,93 @@ class StudentController extends Controller
 
 
 
+
     public function bulkUpload(Request $request)
     {
-        $students = $request->input('students', []);
+        TenantLogger::studentInfo('Starting student bulk upload', ['request_ip' => $request->ip()]);
+        $students = [];
+
+        if ($request->hasFile('file')) {
+            $request->validate([
+                'file' => 'required|mimes:xlsx,csv',
+            ]);
+
+            try {
+                $file = $request->file('file');
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+                $sheet = $spreadsheet->getActiveSheet();
+                $rows = $sheet->toArray(); // Get all rows
+
+                if (count($rows) <= 1) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'File is empty or contains only headers.'
+                    ], 400);
+                }
+
+                $header = array_map('trim', array_shift($rows)); // Extract headers and trim spaces
+                // Helper to find index case-insensitively
+                $getIndex = function($name) use ($header) {
+                    $key = array_search(strtolower($name), array_map('strtolower', $header));
+                    return $key === false ? null : $key;
+                };
+
+                // Required Columns Mapping
+                $map = [
+                    'first_name' => $getIndex('first_name'),
+                    'middle_name' => $getIndex('middle_name'),
+                    'last_name' => $getIndex('last_name'),
+                    'email' => $getIndex('email'),
+                    'phone' => $getIndex('phone'),
+                    'class_id' => $getIndex('class_id'),
+                    'roll_number' => $getIndex('roll_number'),
+                    // Parent info
+                    'parent_first_name' => $getIndex('parent_first_name'),
+                    'parent_last_name' => $getIndex('parent_last_name'),
+                    'parent_email' => $getIndex('parent_email'),
+                    'parent_phone' => $getIndex('parent_phone'),
+                    'parent_relation' => $getIndex('parent_relation'),
+                ];
+
+                foreach ($rows as $row) {
+                    // Skip if primary required fields missing or row empty
+                    if (empty($row) || ($map['first_name'] !== null && empty($row[$map['first_name']]))) continue;
+
+                    $studentData = [
+                        'first_name' => $map['first_name'] !== null ? $row[$map['first_name']] : null,
+                        'middle_name' => $map['middle_name'] !== null ? $row[$map['middle_name']] : null,
+                        'last_name' => $map['last_name'] !== null ? $row[$map['last_name']] : null,
+                        'email' => $map['email'] !== null ? $row[$map['email']] : null,
+                        'phone' => $map['phone'] !== null ? $row[$map['phone']] : null,
+                        'class_id' => $map['class_id'] !== null ? $row[$map['class_id']] : null,
+                        'roll_number' => $map['roll_number'] !== null ? $row[$map['roll_number']] : null,
+                        'parents' => []
+                    ];
+
+                    if ($map['parent_email'] !== null && !empty($row[$map['parent_email']])) {
+                        $studentData['parents'][] = [
+                            'first_name' => $map['parent_first_name'] !== null ? $row[$map['parent_first_name']] : null,
+                            'last_name' => $map['parent_last_name'] !== null ? $row[$map['parent_last_name']] : null,
+                            'email' => $row[$map['parent_email']],
+                            'phone' => $map['parent_phone'] !== null ? $row[$map['parent_phone']] : null,
+                            'relation' => $map['parent_relation'] !== null ? $row[$map['parent_relation']] : 'guardian',
+                        ];
+                    }
+
+                    $students[] = $studentData;
+                }
+
+            } catch (\Exception $e) {
+                TenantLogger::studentError('Bulk upload file parsing error', ['error' => $e->getMessage()]);
+                 return response()->json([
+                    'status' => false,
+                    'message' => 'Error parsing file: ' . $e->getMessage()
+                ], 400);
+            }
+
+        } else {
+            $students = $request->input('students', []);
+        }
 
         if (empty($students)) {
             return response()->json([
@@ -485,6 +593,7 @@ class StudentController extends Controller
 
             if ($successCount === 0) {
                 DB::rollBack();
+                TenantLogger::studentWarning('Bulk upload failed completely', ['errors' => $failed]);
                 return response()->json([
                     'status' => false,
                     'message' => 'All student imports failed.',
@@ -493,6 +602,7 @@ class StudentController extends Controller
             }
 
             DB::commit();
+            TenantLogger::studentInfo('Bulk upload completed', ['success_count' => $successCount, 'failed_count' => count($failed)]);
 
             return response()->json([
                 'status' => true,
@@ -502,6 +612,7 @@ class StudentController extends Controller
 
         } catch (\Throwable $e) {
             DB::rollBack();
+            TenantLogger::studentError('Bulk upload fatal error', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong during bulk upload.',

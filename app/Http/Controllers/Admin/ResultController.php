@@ -1336,8 +1336,8 @@ class ResultController extends Controller
             ], 400);
         }
 
-        // Fetch all students in the class
-        $students = Student::where('class_id', $classId)->pluck('id');
+        // Fetch all students in the class with their names
+        $students = Student::where('class_id', $classId)->get();
 
         if ($students->isEmpty()) {
             return response()->json([
@@ -1348,25 +1348,38 @@ class ResultController extends Controller
 
         $successCount = 0;
         $errors = [];
+        $results = [];
 
-        foreach ($students as $studentId) {
-            // Calculate weighted final result
+        foreach ($students as $student) {
+            // Calculate weighted final result for THIS specific student
             $finalResultData = $calculationService->calculateWeightedFinalResult(
-                $studentId,
+                $student->id,
                 $classId,
                 $resultSetting
             );
 
             if ($finalResultData && isset($finalResultData['final_result'])) {
-                 // Update all results for this student/class with the final result
-                 Result::where('student_id', $studentId)
+                 // Update all results for THIS student/class with THEIR final result
+                 $updated = Result::where('student_id', $student->id)
                     ->where('class_id', $classId)
                     ->update(['final_result' => $finalResultData['final_result']]);
                 
                 $successCount++;
+                
+                // Store result details for response
+                $results[] = [
+                    'student_id' => $student->id,
+                    'student_name' => $student->first_name . ' ' . $student->last_name,
+                    'final_result' => $finalResultData['final_result'],
+                    'result_type' => $finalResultData['result_type'],
+                    'updated_records' => $updated
+                ];
             } else {
-                // Optionally track failures (e.g., missing terms)
-                // $errors[] = "Student ID $studentId: Incomplete term results.";
+                $errors[] = [
+                    'student_id' => $student->id,
+                    'student_name' => $student->first_name . ' ' . $student->last_name,
+                    'error' => 'Incomplete term results or missing data'
+                ];
             }
         }
 
@@ -1375,7 +1388,8 @@ class ResultController extends Controller
             'message' => "Final result generated for $successCount students.",
             'total_students' => $students->count(),
             'generated_count' => $successCount,
-            // 'errors' => $errors
+            'results' => $results,
+            'errors' => $errors
         ]);
     }
 }

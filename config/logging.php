@@ -73,6 +73,40 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Tenant-specific daily logs
+        'tenant_daily' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tenants/{tenant}/laravel.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        // Feature-specific logs
+        'students' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tenants/{tenant}/students.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        'activities' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tenants/{tenant}/activities.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        'results' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/tenants/{tenant}/results.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
