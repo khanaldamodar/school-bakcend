@@ -1,6 +1,7 @@
 <?php
 use App\Http\Controllers\Admin\AnalyticalReportController;
 use App\Http\Controllers\Admin\ClassController;
+use App\Http\Controllers\Admin\ClubController;
 use App\Http\Controllers\Admin\CreateUserController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EventController;
@@ -65,6 +66,10 @@ Route::prefix('tenants/{domain}')
 // use App\Http\Controllers\Api\SubjectController;
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
+
+
+    // ? For Creating the Clubs
+    Route::apiResource("/tenants/{domain}/clubs", ClubController::class)->except('index', 'show');
 
 
 
@@ -209,6 +214,12 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
+
+
+    //? For Club Section
+    
+    Route::get('tenants/{domain}/clubs',[ClubCOntroller::class, 'index']);
+    Route::get('tenants/{domain}/clubs/{id}',[ClubCOntroller::class, 'show']);
 
     // ? Analytical Report
     Route::get('tenants/{domain}/analytical-report', [AnalyticalReportController::class, 'index']);

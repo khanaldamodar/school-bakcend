@@ -341,7 +341,6 @@ class TeacherController extends Controller
         ]);
     }
 
-
     public function me(Request $request)
     {
         $user = $request->user();
@@ -394,5 +393,4 @@ class TeacherController extends Controller
             ]
         ]);
     }
-
 }
