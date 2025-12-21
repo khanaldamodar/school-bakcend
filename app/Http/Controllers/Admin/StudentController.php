@@ -71,6 +71,7 @@ class StudentController extends Controller
             'email' => 'nullable|email',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'nullable|boolean',
+            'ethnicity'=>'string|nullable',
             'is_tribe' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
@@ -243,6 +244,7 @@ class StudentController extends Controller
             'phone' => 'nullable|string|max:20',
             'class_id' => 'required|exists:classes,id',
             'roll_number' => 'nullable|string|max:50',
+            'ethnicity' => 'nullable|string',
 
             // parents array validation
             'parents' => 'nullable|array',
@@ -432,6 +434,7 @@ class StudentController extends Controller
                     'phone' => $getIndex('phone'),
                     'class_id' => $getIndex('class_id'),
                     'roll_number' => $getIndex('roll_number'),
+                    'ethnicity' => $getIndex('ethnicity'),
                     // Parent info
                     'parent_first_name' => $getIndex('parent_first_name'),
                     'parent_last_name' => $getIndex('parent_last_name'),
@@ -452,6 +455,8 @@ class StudentController extends Controller
                         'phone' => $map['phone'] !== null ? $row[$map['phone']] : null,
                         'class_id' => $map['class_id'] !== null ? $row[$map['class_id']] : null,
                         'roll_number' => $map['roll_number'] !== null ? $row[$map['roll_number']] : null,
+                        'ethnicity' => $map['ethnicity'] !== null ? $row[$map['ethnicity']] : null,
+                        
                         'parents' => []
                     ];
 
@@ -508,6 +513,8 @@ class StudentController extends Controller
                     'phone' => 'nullable|string|max:20',
                     'class_id' => 'required|exists:classes,id',
                     'roll_number' => 'nullable|string|max:50',
+                    'ethnicity' => 'nullable|string|max:50',
+                    
 
                     // parents array validation
                     'parents' => 'required|array|min:1',
@@ -538,6 +545,7 @@ class StudentController extends Controller
                         'phone' => $validated['phone'] ?? null,
                         'class_id' => $validated['class_id'],
                         'roll_number' => $validated['roll_number'] ?? null,
+                        'ethnicity' => $validated['ethnicity'] ?? null,
                     ]);
 
                     // Create student user account

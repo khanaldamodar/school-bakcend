@@ -26,7 +26,8 @@ class Student extends Model
         'is_tribe',
         'image',
         'cloudinary_id',
-        "roll_number"
+        "roll_number",
+        'ethnicity'
 
     ];
     public function class()

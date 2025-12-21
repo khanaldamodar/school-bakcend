@@ -46,14 +46,11 @@ class ExtraCurricularActivityController extends Controller
         
         TenantLogger::activityInfo('Starting bulk extra curricular activity creation', ['count' => count($activitiesData)]);
 
-        foreach ($activitiesData as $data) {
-             $createdActivities[] = ExtraCurricularActivity::create($data);
-        }
+        ExtraCurricularActivity::insert($activitiesData);
 
         return response()->json([
             'status' => true,
             'message' => 'Activities added successfully',
-            'data' => $createdActivities
         ], 201);
     }
 
