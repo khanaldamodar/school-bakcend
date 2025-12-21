@@ -20,7 +20,7 @@ class Student extends Model
         'is_transferred',
         'transferred_to',
         'user_id',
-        'address',  
+        'address',
         'blood_group',
         'is_disabled',
         'is_tribe',
@@ -52,6 +52,13 @@ class Student extends Model
     public function results()
     {
         return $this->hasMany(Result::class, 'student_id');
+    }
+
+    public function clubs()
+    {
+        return $this->belongsToMany(Club::class, 'student_club')
+            ->withPivot('position')
+            ->withTimestamps();
     }
 
 }

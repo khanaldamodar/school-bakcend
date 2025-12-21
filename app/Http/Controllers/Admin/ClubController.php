@@ -211,4 +211,52 @@ class ClubController extends Controller
         }
     }
 
+
+    public function students(string $id)
+    {
+        $club = Club::with([
+            'students' => function ($query) {
+                $query->select(
+                    'students.id',
+                    'first_name',
+                    'middle_name',
+                    'last_name',
+                    'roll_number',
+                    'class_id',
+                    'image'
+                );
+            },
+            'students.class:id,name'
+        ])->find($id);
+
+        if (!$club) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Club not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => true,
+            'club' => [
+                'id' => $club->id,
+                'name' => $club->name
+            ],
+            'students' => $club->students->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'name' => trim(
+                        $student->first_name . ' ' .
+                        $student->middle_name . ' ' .
+                        $student->last_name
+                    ),
+                    'roll_number' => $student->roll_number,
+                    'class' => $student->class?->name,
+                    'position' => $student->pivot->position,
+                    'image' => $student->image
+                ];
+            })
+        ], 200);
+    }
+
 }

@@ -11,4 +11,12 @@ class Club extends Model
         'logo',
         'description'
     ];
+
+    public function students()
+    {
+        return $this->belongsToMany(Student::class, 'student_club')
+            ->withPivot('position')
+            ->withTimestamps();
+    }
+
 }

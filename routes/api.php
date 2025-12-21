@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\ResultSettingController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SMSController;
+use App\Http\Controllers\Admin\StudentClubController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
@@ -71,6 +72,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     // ? For Creating the Clubs
     Route::apiResource("/tenants/{domain}/clubs", ClubController::class)->except('index', 'show');
 
+    // ? For adding students to the clubs.
+
+    Route::post("/tenants/{domain}/clubs/students", [StudentClubController::class, 'store']);
+    Route::put("/tenants/{domain}/clubs/{id}/students", [StudentClubController::class, 'update']);
+    Route::delete("/tenants/{domain}/clubs/{id}/students", [StudentClubController::class, 'destroy']);
 
 
     // ? To update the settings of the school by admin 
@@ -220,6 +226,8 @@ Route::middleware(['tenant'])->group(function () {
     
     Route::get('tenants/{domain}/clubs',[ClubCOntroller::class, 'index']);
     Route::get('tenants/{domain}/clubs/{id}',[ClubCOntroller::class, 'show']);
+    Route::get('/clubs/{id}/students', [ClubController::class, 'students']);
+
 
     // ? Analytical Report
     Route::get('tenants/{domain}/analytical-report', [AnalyticalReportController::class, 'index']);
