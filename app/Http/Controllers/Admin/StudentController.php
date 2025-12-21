@@ -71,7 +71,7 @@ class StudentController extends Controller
             'email' => 'nullable|email',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'nullable|boolean',
-            'ethnicity'=>'string|nullable',
+            'ethnicity' => 'string|nullable',
             'is_tribe' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
@@ -153,7 +153,7 @@ class StudentController extends Controller
             $parentEmails = collect($validated['parents'])->pluck('email')->unique();
             $existingUsers = User::whereIn('email', $parentEmails)->get()->keyBy('email');
             $existingParents = ParentModel::whereIn('email', $parentEmails)->get()->keyBy('email');
-            
+
             $parentIds = [];
 
             foreach ($validated['parents'] as $parentData) {
@@ -372,7 +372,7 @@ class StudentController extends Controller
     {
         // $request->user() comes from Sanctum auth
         $userId = $request->user()->id;
- 
+
         // Fetch the student linked to this user_id
         $student = Student::with(['class', 'parents'])
             ->where('user_id', $userId)
@@ -420,7 +420,7 @@ class StudentController extends Controller
 
                 $header = array_map('trim', array_shift($rows)); // Extract headers and trim spaces
                 // Helper to find index case-insensitively
-                $getIndex = function($name) use ($header) {
+                $getIndex = function ($name) use ($header) {
                     $key = array_search(strtolower($name), array_map('strtolower', $header));
                     return $key === false ? null : $key;
                 };
@@ -445,7 +445,8 @@ class StudentController extends Controller
 
                 foreach ($rows as $row) {
                     // Skip if primary required fields missing or row empty
-                    if (empty($row) || ($map['first_name'] !== null && empty($row[$map['first_name']]))) continue;
+                    if (empty($row) || ($map['first_name'] !== null && empty($row[$map['first_name']])))
+                        continue;
 
                     $studentData = [
                         'first_name' => $map['first_name'] !== null ? $row[$map['first_name']] : null,
@@ -456,7 +457,7 @@ class StudentController extends Controller
                         'class_id' => $map['class_id'] !== null ? $row[$map['class_id']] : null,
                         'roll_number' => $map['roll_number'] !== null ? $row[$map['roll_number']] : null,
                         'ethnicity' => $map['ethnicity'] !== null ? $row[$map['ethnicity']] : null,
-                        
+
                         'parents' => []
                     ];
 
@@ -475,7 +476,7 @@ class StudentController extends Controller
 
             } catch (\Exception $e) {
                 TenantLogger::studentError('Bulk upload file parsing error', ['error' => $e->getMessage()]);
-                 return response()->json([
+                return response()->json([
                     'status' => false,
                     'message' => 'Error parsing file: ' . $e->getMessage()
                 ], 400);
@@ -514,7 +515,7 @@ class StudentController extends Controller
                     'class_id' => 'required|exists:classes,id',
                     'roll_number' => 'nullable|string|max:50',
                     'ethnicity' => 'nullable|string|max:50',
-                    
+
 
                     // parents array validation
                     'parents' => 'required|array|min:1',

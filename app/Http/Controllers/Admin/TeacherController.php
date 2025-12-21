@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Cloudinary\Cloudinary;
+use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
 {
@@ -83,13 +84,18 @@ class TeacherController extends Controller
             'is_disabled' => 'required|boolean',
             'is_tribe' => 'required|boolean',
             'image' => 'nullable|file|image|max:2048',
-            'grade'=> 'string|required',
+            'grade' => 'string|required',
             'gender' => 'required|string',
             'dob' => 'required|date',
             'nationality' => 'required|string',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
-            'class_teacher_of' => 'nullable|exists:classes,id'
+            'class_teacher_of' => 'nullable|exists:classes,id',
+            'ethnicity' => 'nullable|string',
+            'post' => [
+                'required',
+                Rule::in(['आधारभूत तह', 'निम्न माध्यमिक तह', 'माध्यमिक तह']),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -127,7 +133,7 @@ class TeacherController extends Controller
 
 
 
-            // ✅ Create user
+            //  Create user
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -136,7 +142,7 @@ class TeacherController extends Controller
                 'role' => 'teacher',
             ]);
 
-            // ✅ Create teacher profile
+            //  Create teacher profile
             $teacher = Teacher::create([
                 'user_id' => $user->id,
                 'name' => $data['name'],
@@ -152,6 +158,8 @@ class TeacherController extends Controller
                 // 'cloudinary_id' => $uploadedImage['public_id'] ?? null,
                 'gender' => $data['gender'],
                 'grade' => $data['grade'],
+                'ethnicity' => $data['ethnicity'],
+                'post' => $data['post'],
                 'dob' => $data['dob'],
                 'nationality' => $data['nationality'],
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
@@ -224,7 +232,12 @@ class TeacherController extends Controller
             'nationality' => 'required|string',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
-            'class_teacher_of' => 'nullable|exists:classes,id'
+            'class_teacher_of' => 'nullable|exists:classes,id',
+            'ethnicity' => 'sometimes|string',
+            'post' => [
+                'sometimes',
+                Rule::in(['आधारभूत तह', 'निम्न माध्यमिक तह', 'माध्यमिक तह']),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -243,7 +256,7 @@ class TeacherController extends Controller
             $cloudinaryId = $teacher->cloudinary_id;
             $imageUrl = $teacher->image;
 
-            // ✅ Handle new image upload
+            //  Handle new image upload
             if ($request->hasFile('image')) {
                 // Delete old image from Cloudinary
                 if ($cloudinaryId) {
@@ -261,14 +274,14 @@ class TeacherController extends Controller
                 }
             }
 
-            // ✅ Update user
+            //  Update user
             $user->update([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
             ]);
 
-            // ✅ Update teacher
+            //  Update teacher
             $teacher->update([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -284,16 +297,19 @@ class TeacherController extends Controller
                 'dob' => $data['dob'],
                 'nationality' => $data['nationality'],
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
+                'grade' => $data['grade'],
+                'ethnicity' => $data['ethnicity'],
+                'post' => $data['post']
             ]);
 
-            // ✅ Sync subjects
+            //  Sync subjects
             if (!empty($data['subject_ids'])) {
                 $teacher->subjects()->sync($data['subject_ids']);
             } else {
                 $teacher->subjects()->sync([]);
             }
 
-            // ✅ Update class teacher assignment
+            //  Update class teacher assignment
             if (!empty($data['class_teacher_of'])) {
                 $class = SchoolClass::find($data['class_teacher_of']);
                 $class->class_teacher_id = $teacher->id;

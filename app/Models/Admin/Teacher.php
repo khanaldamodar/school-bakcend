@@ -22,7 +22,9 @@ class Teacher extends Model
         'dob',
         'nationality',
         'cloudinary_id',
-        'grade'
+        'grade',
+        'ethnicity',
+        'post'
     ];
 
     public function subjects()
