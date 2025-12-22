@@ -196,8 +196,6 @@ class TeacherController extends Controller
         }
     }
 
-
-
     public function show($domain, $id)
     {
         $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id'])->findOrFail($id);

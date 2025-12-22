@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Services\TenantLogger;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -436,6 +437,9 @@ class StudentController extends Controller
                     'class_id' => $getIndex('class_id'),
                     'roll_number' => $getIndex('roll_number'),
                     'ethnicity' => $getIndex('ethnicity'),
+                    'address' => $getIndex('address'),
+                    'is_disabled' => $getIndex('is_disabled'),
+                    'is_tribe' => $getIndex('is_tribe'),
                     // Parent info
                     'parent_first_name' => $getIndex('parent_first_name'),
                     'parent_last_name' => $getIndex('parent_last_name'),
@@ -458,6 +462,9 @@ class StudentController extends Controller
                         'class_id' => $map['class_id'] !== null ? $row[$map['class_id']] : null,
                         'roll_number' => $map['roll_number'] !== null ? $row[$map['roll_number']] : null,
                         'ethnicity' => $map['ethnicity'] !== null ? $row[$map['ethnicity']] : null,
+                        'address' => $map['address'] !== null ? $row[$map['address']] : null,
+                        'is_disabled' => $map['is_disabled'] !== null ? $row[$map['is_disabled']] : null,
+                        'is_tribe' => $map['is_tribe'] !== null ? $row[$map['is_tribe']] : null,
 
                         'parents' => []
                     ];
@@ -506,16 +513,22 @@ class StudentController extends Controller
                     $decoded = json_decode($studentData['parents'], true);
                     $studentData['parents'] = is_array($decoded) ? $decoded : [];
                 }
-                // ✅ Validate each student row
+                //  Validate each student row
                 $validator = Validator::make($studentData, [
                     'first_name' => 'required|string|max:255',
                     'middle_name' => 'nullable|string|max:255',
                     'last_name' => 'nullable|string|max:255',
                     'email' => 'nullable|email|unique:students,email',
                     'phone' => 'nullable|string|max:20',
-                    'class_id' => 'required|exists:classes,id',
+                    'address' => 'required|string|max:20',
+                    'class_id' => [
+                        'required',
+                        Rule::exists('classes', 'id'),
+                    ],
                     'roll_number' => 'nullable|string|max:50',
                     'ethnicity' => 'nullable|string|max:50',
+                    'is_disabled' => 'required|boolean',
+                    'is_tribe' => 'required|boolean',
 
 
                     // parents array validation
@@ -548,6 +561,9 @@ class StudentController extends Controller
                         'class_id' => $validated['class_id'],
                         'roll_number' => $validated['roll_number'] ?? null,
                         'ethnicity' => $validated['ethnicity'] ?? null,
+                        'address' => $validated['address'] ?? null,
+                        'is_disabled' => $validated['is_disabled'] ?? null,
+                        'is_tribe' => $validated['is_tribe'] ?? null
                     ]);
 
                     // Create student user account
