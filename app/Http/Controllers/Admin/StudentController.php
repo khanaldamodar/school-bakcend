@@ -118,6 +118,7 @@ class StudentController extends Controller
                 'gender' => $validated['gender'] ?? null,
                 'email' => $validated['email'] ?? null,
                 'blood_group' => $validated['blood_group'] ?? null,
+                'ethnicity' => $validated['ethnicity'] ?? null,
                 'is_disabled' => $validated['is_disabled'] ?? 0,
                 'is_tribe' => $validated['is_tribe'] ?? 0,
                 'phone' => $validated['phone'] ?? null,
