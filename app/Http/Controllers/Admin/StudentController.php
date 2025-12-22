@@ -394,9 +394,6 @@ class StudentController extends Controller
         ]);
     }
 
-
-
-
     public function bulkUpload(Request $request)
     {
         TenantLogger::studentInfo('Starting student bulk upload', ['request_ip' => $request->ip()]);
@@ -646,6 +643,5 @@ class StudentController extends Controller
             ], 500);
         }
     }
-
 
 }
