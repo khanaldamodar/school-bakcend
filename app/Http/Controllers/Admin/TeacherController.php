@@ -59,7 +59,7 @@ class TeacherController extends Controller
 
     public function index()
     {
-        $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id'])->get();
+        $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles'])->get();
 
         return response()->json([
             'status' => true,
@@ -98,7 +98,9 @@ class TeacherController extends Controller
             ],
             'dob_bs' => 'string|nullable',
             'joining_data_bs' => 'string|nullable',
-            'joining_date' => 'nullable'
+            'joining_date' => 'nullable',
+            'role_ids' => 'nullable|array',
+            'role_ids.*' => 'exists:teacher_roles,id',
         ]);
 
         if ($validator->fails()) {
@@ -176,6 +178,11 @@ class TeacherController extends Controller
                 $teacher->subjects()->sync($data['subject_ids']);
             }
 
+            // Sync Roles
+            if (!empty($data['role_ids'])) {
+                $teacher->roles()->sync($data['role_ids']);
+            }
+
             //  Assign class teacher
             if (!empty($data['class_teacher_of'])) {
                 $class = SchoolClass::find($data['class_teacher_of']);
@@ -188,7 +195,7 @@ class TeacherController extends Controller
             return response()->json([
                 'status' => true,
                 'message' => 'Teacher created successfully',
-                'data' => $teacher->load('subjects', 'classTeacherOf', 'user'),
+                'data' => $teacher->load('subjects', 'classTeacherOf', 'user', 'roles'),
             ], 201);
 
         } catch (\Throwable $e) {
@@ -204,7 +211,7 @@ class TeacherController extends Controller
 
     public function show($domain, $id)
     {
-        $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id'])->findOrFail($id);
+        $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles'])->findOrFail($id);
         // dd($teacher);
         return response()->json([
             'status' => true,
@@ -244,7 +251,9 @@ class TeacherController extends Controller
             ],
             'dob_bs' => 'string|nullable',
             'joining_data_bs' => 'string|nullable',
-            'joining_date' => 'nullable'
+            'joining_date' => 'nullable',
+            'role_ids' => 'nullable|array',
+            'role_ids.*' => 'exists:teacher_roles,id',
 
         ]);
 
@@ -320,6 +329,13 @@ class TeacherController extends Controller
                 $teacher->subjects()->sync([]);
             }
 
+            // Sync Roles
+            if (!empty($data['role_ids'])) {
+                $teacher->roles()->sync($data['role_ids']);
+            } else {
+                $teacher->roles()->sync([]);
+            }
+
             //  Update class teacher assignment
             if (!empty($data['class_teacher_of'])) {
                 $class = SchoolClass::find($data['class_teacher_of']);
@@ -332,7 +348,7 @@ class TeacherController extends Controller
             return response()->json([
                 'status' => true,
                 'message' => 'Teacher updated successfully',
-                'data' => $teacher->load('subjects', 'classTeacherOf', 'user'),
+                'data' => $teacher->load('subjects', 'classTeacherOf', 'user', 'roles'),
             ], 200);
 
         } catch (\Throwable $e) {

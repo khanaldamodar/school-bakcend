@@ -75,7 +75,16 @@ class Teacher extends Model
     }
 
 
-
-
-
+public function roles()
+{
+    return $this->belongsToMany(
+        TeacherRole::class,
+        'teacher_role_map',
+        'teacher_id',
+        'teacher_role_id'
+    )
+    ->using(TeacherRoleMap::class)
+    ->withPivot('start_date', 'end_date')
+    ->withTimestamps();
+}
 }

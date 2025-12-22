@@ -6,6 +6,8 @@ use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\ParentModel;
 use App\Models\Admin\Student;
+use App\Models\Admin\StudentClassHistory;
+use App\Models\Admin\AcademicYear;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -205,6 +207,18 @@ class StudentController extends Controller
             // Reassign all roll numbers in the class to maintain alphabetical order
             $this->reassignRollNumbers($validated['class_id']);
 
+            // Reload student to get updated roll_number
+            $student->refresh();
+
+            // Create initial class history record
+            $this->createClassHistory(
+                $student->id,
+                $validated['class_id'],
+                $student->roll_number,
+                'active',
+                'Initial enrollment'
+            );
+
             DB::commit();
 
             TenantLogger::studentInfo('Student created successfully', ['student_id' => $student->id, 'tenant' => $tenantDomain]);
@@ -322,6 +336,28 @@ class StudentController extends Controller
                 // If class changed, also reassign roll numbers in the old class
                 if ($classChanged) {
                     $this->reassignRollNumbers($oldClassId);
+                    
+                    // Mark old class history as promoted
+                    StudentClassHistory::where('student_id', $student->id)
+                        ->where('class_id', $oldClassId)
+                        ->where('status', 'active')
+                        ->update([
+                            'status' => 'promoted',
+                            'promoted_date' => now(),
+                            'remarks' => 'Promoted to ' . $student->class->name
+                        ]);
+                    
+                    // Reload student to get updated roll_number
+                    $student->refresh();
+                    
+                    // Create new class history record
+                    $this->createClassHistory(
+                        $student->id,
+                        $validated['class_id'],
+                        $student->roll_number,
+                        'active',
+                        'Promoted from previous class'
+                    );
                 }
             }
 
@@ -783,6 +819,31 @@ class StudentController extends Controller
             Student::where('id', $student['id'])
                 ->update(['roll_number' => $index + 1]);
         }
+    }
+
+    /**
+     * Create a class history record for a student
+     * 
+     * @param int $studentId
+     * @param int $classId
+     * @param int $rollNumber
+     * @param string $status
+     * @param string|null $remarks
+     * @return void
+     */
+    private function createClassHistory($studentId, $classId, $rollNumber, $status = 'active', $remarks = null)
+    {
+        $currentAcademicYear = AcademicYear::current();
+        
+        StudentClassHistory::create([
+            'student_id' => $studentId,
+            'class_id' => $classId,
+            'year' => now()->year,
+            'academic_year_id' => $currentAcademicYear ? $currentAcademicYear->id : null,
+            'roll_number' => $rollNumber,
+            'status' => $status,
+            'remarks' => $remarks,
+        ]);
     }
 
 }

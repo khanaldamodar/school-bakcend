@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\StudentClubController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Admin\AcademicYearController;
+use App\Http\Controllers\Admin\StudentPromotionController;
 use App\Http\Controllers\Admin\WebsiteSettingController;
 use App\Http\Controllers\Government\AllTeachersController;
 use App\Http\Controllers\Government\AnalyticsController;
@@ -126,6 +128,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     //? To create Teachers
     Route::apiResource('tenants/{domain}/teachers', TeacherController::class)->except('index');
+    Route::apiResource('tenants/{domain}/teacher-roles', TeacherRoleController::class)->except(['index', 'show']);
 
     //? TO create the Students
     Route::apiResource('tenants/{domain}/students', StudentController::class)->except('show', 'store');
@@ -162,6 +165,15 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // To get te class While Sending the message. 
     Route::get('tenants/{domain}/sms-class', [SMSController::class, 'getClass']);
+
+    // ? Academic Year Management
+    Route::get('tenants/{domain}/academic-years/current', [AcademicYearController::class, 'current']);
+    Route::apiResource('tenants/{domain}/academic-years', AcademicYearController::class)->except(['index', 'show']);
+    Route::post('tenants/{domain}/academic-years/{id}/set-current', [AcademicYearController::class, 'setCurrent']);
+
+    // ? Student Promotion and Graduation
+    Route::post('tenants/{domain}/students/promote', [StudentPromotionController::class, 'promoteClass']);
+    Route::post('tenants/{domain}/students/graduate', [StudentPromotionController::class, 'markGraduated']);
 });
 
 // ?For the Teachers and admin
@@ -201,6 +213,13 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     // ? To generate final result
     Route::post('tenants/{domain}/classes/{classId}/generate-final', [ResultController::class, 'generateClassFinalResult']);
+
+    // ? Academic Year Viewing
+    Route::get('tenants/{domain}/academic-years', [AcademicYearController::class, 'index']);
+    Route::get('tenants/{domain}/academic-years/{id}', [AcademicYearController::class, 'show']);
+
+    // ? Class History viewing
+    Route::get('tenants/{domain}/classes/{classId}/history', [StudentPromotionController::class, 'getClassHistory']);
 });
 
 // ?For the students and parents
@@ -215,6 +234,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
     // Delete Result (Admin/Teacher)
     Route::delete('tenants/{domain}/students/results/{id}', [ResultController::class, 'destroy']);
+
+    // ? Student History viewing
+    Route::get('tenants/{domain}/students/{id}/history', [StudentPromotionController::class, 'getStudentHistory']);
 });
 
 
@@ -247,6 +269,7 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
     Route::get('tenants/{domain}/teachers', action: [TeacherController::class, 'index']);
     //? Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
+    Route::get('tenants/{domain}/teacher-roles', [TeacherRoleController::class, 'index']);
 
 
     //? Report api for school
