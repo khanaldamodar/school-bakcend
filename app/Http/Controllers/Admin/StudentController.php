@@ -78,7 +78,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'image' => 'nullable|file|image|max:2048',
             'class_id' => 'required|exists:classes,id',
-            'roll_number' => 'nullable|string|max:50',
+            // roll_number removed - will be auto-generated
             'enrollment_year' => 'nullable|digits:4',
             'is_transferred' => 'nullable|boolean',
             'transferred_to' => 'nullable|string|max:255',
@@ -108,7 +108,13 @@ class StudentController extends Controller
                 }
             }
 
-
+            // Generate roll number based on alphabetical order
+            $rollNumber = $this->generateRollNumber(
+                $validated['class_id'],
+                $validated['first_name'],
+                $validated['middle_name'] ?? null,
+                $validated['last_name'] ?? null
+            );
 
             // Create student
             $student = Student::create([
@@ -124,7 +130,7 @@ class StudentController extends Controller
                 'is_tribe' => $validated['is_tribe'] ?? 0,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
-                'roll_number' => $validated['roll_number'] ?? null,
+                'roll_number' => $rollNumber, // Auto-generated roll number
                 'enrollment_year' => $validated['enrollment_year'] ?? null,
                 'is_transferred' => $validated['is_transferred'] ?? false,
                 'transferred_to' => $validated['transferred_to'] ?? null,
@@ -196,6 +202,9 @@ class StudentController extends Controller
             // Sync updated parents
             $student->parents()->syncWithoutDetaching($parentIds);
 
+            // Reassign all roll numbers in the class to maintain alphabetical order
+            $this->reassignRollNumbers($validated['class_id']);
+
             DB::commit();
 
             TenantLogger::studentInfo('Student created successfully', ['student_id' => $student->id, 'tenant' => $tenantDomain]);
@@ -245,7 +254,7 @@ class StudentController extends Controller
             'email' => 'nullable|email|unique:students,email,' . $student->id,
             'phone' => 'nullable|string|max:20',
             'class_id' => 'required|exists:classes,id',
-            'roll_number' => 'nullable|string|max:50',
+            // roll_number removed - will be auto-generated
             'ethnicity' => 'nullable|string',
 
             // parents array validation
@@ -261,6 +270,14 @@ class StudentController extends Controller
         DB::beginTransaction();
 
         try {
+            // Track if class changed
+            $oldClassId = $student->class_id;
+            $classChanged = $oldClassId != $validated['class_id'];
+            
+            // Track if name changed
+            $nameChanged = $student->first_name != $validated['first_name'] || 
+                          $student->last_name != ($validated['last_name'] ?? null);
+
             // Update student
             $student->update([
                 'first_name' => $validated['first_name'],
@@ -268,7 +285,7 @@ class StudentController extends Controller
                 'email' => $validated['email'] ?? null,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
-                'roll_number' => $validated['roll_number'] ?? null,
+                // roll_number will be reassigned below
             ]);
 
             // If parents data provided, handle update
@@ -295,6 +312,17 @@ class StudentController extends Controller
 
                 // Sync updated parents (remove old ones if not provided in request)
                 $student->parents()->sync($parentIds);
+            }
+
+            // Reassign roll numbers if name changed or class changed
+            if ($nameChanged || $classChanged) {
+                // Reassign roll numbers in the new class
+                $this->reassignRollNumbers($validated['class_id']);
+                
+                // If class changed, also reassign roll numbers in the old class
+                if ($classChanged) {
+                    $this->reassignRollNumbers($oldClassId);
+                }
             }
 
             DB::commit();
@@ -325,7 +353,11 @@ class StudentController extends Controller
     public function destroy($domain, string $id)
     {
         $student = Student::findOrFail($id);
+        $classId = $student->class_id; // Store class_id before deletion
         $student->delete();
+
+        // Reassign roll numbers for the class after deletion
+        $this->reassignRollNumbers($classId);
 
         return response()->json([
             'status' => true,
@@ -432,7 +464,7 @@ class StudentController extends Controller
                     'email' => $getIndex('email'),
                     'phone' => $getIndex('phone'),
                     'class_id' => $getIndex('class_id'),
-                    'roll_number' => $getIndex('roll_number'),
+                    // roll_number removed - will be auto-generated
                     'ethnicity' => $getIndex('ethnicity'),
                     'address' => $getIndex('address'),
                     'is_disabled' => $getIndex('is_disabled'),
@@ -457,7 +489,7 @@ class StudentController extends Controller
                         'email' => $map['email'] !== null ? $row[$map['email']] : null,
                         'phone' => $map['phone'] !== null ? $row[$map['phone']] : null,
                         'class_id' => $map['class_id'] !== null ? $row[$map['class_id']] : null,
-                        'roll_number' => $map['roll_number'] !== null ? $row[$map['roll_number']] : null,
+                        // roll_number removed - will be auto-generated
                         'ethnicity' => $map['ethnicity'] !== null ? $row[$map['ethnicity']] : null,
                         'address' => $map['address'] !== null ? $row[$map['address']] : null,
                         'is_disabled' => $map['is_disabled'] !== null ? $row[$map['is_disabled']] : null,
@@ -522,7 +554,7 @@ class StudentController extends Controller
                         'required',
                         Rule::exists('classes', 'id'),
                     ],
-                    'roll_number' => 'nullable|string|max:50',
+                    // roll_number removed - will be auto-generated
                     'ethnicity' => 'nullable|string|max:50',
                     'is_disabled' => 'required|boolean',
                     'is_tribe' => 'required|boolean',
@@ -556,7 +588,7 @@ class StudentController extends Controller
                         'email' => $validated['email'] ?? null,
                         'phone' => $validated['phone'] ?? null,
                         'class_id' => $validated['class_id'],
-                        'roll_number' => $validated['roll_number'] ?? null,
+                        'roll_number' => null, // Will be assigned after all imports
                         'ethnicity' => $validated['ethnicity'] ?? null,
                         'address' => $validated['address'] ?? null,
                         'is_disabled' => $validated['is_disabled'] ?? null,
@@ -624,6 +656,19 @@ class StudentController extends Controller
                 ], 422);
             }
 
+            // Reassign roll numbers for all affected classes
+            $affectedClasses = Student::whereIn('id', function($query) use ($students) {
+                // Get all class IDs from the imported students
+                $classIds = collect($students)->pluck('class_id')->unique();
+                $query->select('class_id')
+                      ->from('students')
+                      ->whereIn('class_id', $classIds);
+            })->pluck('class_id')->unique();
+
+            foreach ($affectedClasses as $classId) {
+                $this->reassignRollNumbers($classId);
+            }
+
             DB::commit();
             TenantLogger::studentInfo('Bulk upload completed', ['success_count' => $successCount, 'failed_count' => count($failed)]);
 
@@ -641,6 +686,102 @@ class StudentController extends Controller
                 'message' => 'Something went wrong during bulk upload.',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Generate roll number for a student based on alphabetical order within their class
+     * 
+     * @param int $classId
+     * @param string $firstName
+     * @param string|null $middleName
+     * @param string|null $lastName
+     * @param int|null $excludeStudentId - Student ID to exclude (for updates)
+     * @return int
+     */
+    private function generateRollNumber($classId, $firstName, $middleName = null, $lastName = null, $excludeStudentId = null)
+    {
+        // Get all students in the class (excluding current student if updating)
+        $query = Student::where('class_id', $classId);
+        
+        if ($excludeStudentId) {
+            $query->where('id', '!=', $excludeStudentId);
+        }
+        
+        $students = $query->get();
+        
+        // Create full name for the new student
+        $newStudentFullName = trim(
+            ($firstName ?? '') . ' ' . 
+            ($middleName ?? '') . ' ' . 
+            ($lastName ?? '')
+        );
+        
+        // Add the new student to the list for sorting
+        $allStudents = $students->map(function ($student) {
+            return [
+                'id' => $student->id,
+                'full_name' => trim(
+                    ($student->first_name ?? '') . ' ' . 
+                    ($student->middle_name ?? '') . ' ' . 
+                    ($student->last_name ?? '')
+                )
+            ];
+        })->toArray();
+        
+        // Add new student
+        $allStudents[] = [
+            'id' => 'new',
+            'full_name' => $newStudentFullName
+        ];
+        
+        // Sort alphabetically by full name
+        usort($allStudents, function ($a, $b) {
+            return strcasecmp($a['full_name'], $b['full_name']);
+        });
+        
+        // Find position of new student (1-indexed)
+        $position = 1;
+        foreach ($allStudents as $index => $student) {
+            if ($student['id'] === 'new') {
+                $position = $index + 1;
+                break;
+            }
+        }
+        
+        return $position;
+    }
+
+    /**
+     * Reassign roll numbers for all students in a class based on alphabetical order
+     * 
+     * @param int $classId
+     * @return void
+     */
+    private function reassignRollNumbers($classId)
+    {
+        // Get all students in the class
+        $students = Student::where('class_id', $classId)
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'full_name' => trim(
+                        ($student->first_name ?? '') . ' ' . 
+                        ($student->middle_name ?? '') . ' ' . 
+                        ($student->last_name ?? '')
+                    )
+                ];
+            })
+            ->sortBy(function ($student) {
+                return strtolower($student['full_name']);
+            })
+            ->values();
+        
+        // Update roll numbers
+        foreach ($students as $index => $student) {
+            Student::where('id', $student['id'])
+                ->update(['roll_number' => $index + 1]);
         }
     }
 
