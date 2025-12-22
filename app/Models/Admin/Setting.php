@@ -39,12 +39,14 @@ class Setting extends Model
     protected static function booted()
 {
     static::saved(function ($setting) {
-        Cache::forget('settings');
-        Cache::forever('settings', $setting);
+        $tenantId = tenant('id');
+        Cache::forget("settings_{$tenantId}");
+        Cache::forever("settings_{$tenantId}", $setting);
     });
 
     static::deleted(function () {
-        Cache::forget('settings');
+        $tenantId = tenant('id');
+        Cache::forget("settings_{$tenantId}");
     });
 }
 
