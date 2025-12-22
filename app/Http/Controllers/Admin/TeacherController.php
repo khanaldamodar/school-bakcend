@@ -96,6 +96,9 @@ class TeacherController extends Controller
                 'required',
                 Rule::in(['आधारभूत तह', 'निम्न माध्यमिक तह', 'माध्यमिक तह']),
             ],
+            'dob_bs' => 'string|nullable',
+            'joining_data_bs' => 'string|nullable',
+            'joining_date' => 'nullable'
         ]);
 
         if ($validator->fails()) {
@@ -163,6 +166,9 @@ class TeacherController extends Controller
                 'dob' => $data['dob'],
                 'nationality' => $data['nationality'],
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
+                'dob_bs' => $data['dob_bs'],
+                'joining_data_bs' => $data['joining_data_bs'],
+                'joining_date' => $data['joining_date']
             ]);
 
             //  Sync subjects
@@ -236,6 +242,10 @@ class TeacherController extends Controller
                 'sometimes',
                 Rule::in(['आधारभूत तह', 'निम्न माध्यमिक तह', 'माध्यमिक तह']),
             ],
+            'dob_bs' => 'string|nullable',
+            'joining_data_bs' => 'string|nullable',
+            'joining_date' => 'nullable'
+
         ]);
 
         if ($validator->fails()) {
@@ -297,7 +307,10 @@ class TeacherController extends Controller
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
                 'grade' => $data['grade'],
                 'ethnicity' => $data['ethnicity'],
-                'post' => $data['post']
+                'post' => $data['post'],
+                'dob_bs' => $data['dob_bs'],
+                'joining_data_bs' => $data['joining_data_bs'],
+                'joining_date' => $data['joining_date']
             ]);
 
             //  Sync subjects

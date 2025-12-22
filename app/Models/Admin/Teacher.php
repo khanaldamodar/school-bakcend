@@ -24,7 +24,10 @@ class Teacher extends Model
         'cloudinary_id',
         'grade',
         'ethnicity',
-        'post'
+        'post',
+        'dob_bs',
+        'joining_data_bs',
+        'joining_date'
     ];
 
     public function subjects()
