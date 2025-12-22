@@ -39,64 +39,68 @@ class TenantController extends Controller
      */
     //? Create new School
     public function store(Request $request)
-{
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|email|max:255',
-        'district' => 'required|string|max:255',
-        'local_unit' => 'required|string|max:255',
-        'ward' => 'required|integer',
-        'domain' => 'required|string|max:255|unique:domains,domain',
-        'password' => ['required', Password::defaults()],
-        'phone' => 'required|string|max:15'
-    ]);
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'district' => 'required|string|max:255',
+            'local_unit' => 'required|string|max:255',
+            'ward' => 'required|integer',
+            'domain' => 'required|string|max:255|unique:domains,domain',
+            'password' => ['required', Password::defaults()],
+            'phone' => 'required|string|max:15'
+        ]);
 
-    // ✅ No need to manually set $dbName here
-    $tenant = Tenant::create([
-        'name' => $validated['name'],
-        'email' => $validated['email'],
-        'district' => $validated['district'],
-        'local_unit' => $validated['local_unit'],
-        'ward' => $validated['ward'],
-        'domain' => $validated['domain'],
-        'password' => $validated['password'],
-    ]);
+        // No need to manually set $dbName here
+        $tenant = Tenant::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'district' => $validated['district'],
+            'local_unit' => $validated['local_unit'],
+            'ward' => $validated['ward'],
+            'domain' => $validated['domain'],
+            'password' => $validated['password'],
+        ]);
 
-    $tenant->domains()->create([
-        'domain' => $validated['domain']
-    ]);
+        $tenant->domains()->create([
+            'domain' => $validated['domain']
+        ]);
 
-    tenancy()->initialize($tenant);
+        tenancy()->initialize($tenant);
 
-    \Artisan::call('migrate', [
-        '--path' => 'database/migrations/tenant',
-        '--force' => true
-    ]);
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/tenant',
+            '--force' => true
+        ]);
 
-    \Artisan::call('migrate', [
-        '--path' => 'vendor/laravel/sanctum/database/migrations',
-        '--database' => 'tenant',
-        '--force' => true
-    ]);
+        \Artisan::call('migrate', [
+            '--path' => 'vendor/laravel/sanctum/database/migrations',
+            '--database' => 'tenant',
+            '--force' => true
+        ]);
 
-    \App\Models\User::create([
-        'name' => $validated['name'],
-        'email' => $validated['email'],
-        'password' => bcrypt($validated['password']),
-        'phone' => $validated['phone']
-    ]);
+        \App\Models\User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+            'phone' => $validated['phone']
+        ]);
 
-    \App\Models\Admin\Setting::create([
-        "name" => "Demo",
-        "about"=> "demo",
-    ]);
+        \App\Models\Admin\Setting::create([
+            "name" => "Demo",
+            "about" => "demo",
+            "district" => $validated['district'],
+            "local_body" => $validated['local_unit'],
+            "ward" => $validated['ward']
 
-    return response()->json([
-        'status' => true,
-        'message' => "New School Registered Successfully",
-        'data' => $tenant
-    ]);
-}
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => "New School Registered Successfully",
+            'data' => $tenant
+        ]);
+    }
 
 
     /**
