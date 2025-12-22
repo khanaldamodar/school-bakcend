@@ -87,7 +87,7 @@ class TenantController extends Controller
         ]);
 
         \App\Models\Admin\Setting::create([
-            "name" => "Demo",
+            "name" => $validated['name'],
             "about" => "demo",
             "district" => $validated['district'],
             "local_body" => $validated['local_unit'],
