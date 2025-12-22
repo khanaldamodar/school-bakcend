@@ -25,7 +25,10 @@ class Setting extends Model
         'favicon_public_id',
         'logo_public_id',
         'number_of_exams',
-        'isWeighted'
+        'isWeighted',
+        'district',
+        'local_body',
+        'ward'
     ];
 
     protected $hidden =[

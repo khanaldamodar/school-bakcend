@@ -41,7 +41,10 @@ class SettingController extends Controller
             "start_time" => 'date_format:H:i:s|required',
             "end_time" => 'date_format:H:i:s|required',
             "isWeighted" => "nullable",
-            "number_of_exams" => "nullable"
+            "number_of_exams" => "nullable",
+            'district' => 'string|nullable',
+            'local_body' => 'string|nullable',
+            'ward' => 'integer|nullable'
         ]);
 
         if ($validator->fails()) {
@@ -100,7 +103,10 @@ class SettingController extends Controller
             'established_date' => 'sometimes|date',
             'principle' => 'sometimes|string|max:100',
             'favicon_public_id' => "sometimes|string",
-            'logo_public_id' => 'sometimes|string'
+            'logo_public_id' => 'sometimes|string',
+            'district' => 'sometimes|string',
+            'local_body' => 'sometimes|string',
+            'ward' => 'sometimes|integer'
         ]);
 
         // === Upload Logo to Cloudinary ===
