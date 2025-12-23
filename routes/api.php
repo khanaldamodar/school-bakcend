@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\AcademicYearController;
 use App\Http\Controllers\Admin\StudentPromotionController;
 use App\Http\Controllers\Admin\TeacherRoleController;
 use App\Http\Controllers\Admin\WebsiteSettingController;
+use App\Http\Controllers\Admin\PostController;
 use App\Http\Controllers\Government\AllTeachersController;
 use App\Http\Controllers\Government\AnalyticsController;
 use App\Http\Controllers\Government\GovernmentController;
@@ -175,6 +176,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     // ? Student Promotion and Graduation
     Route::post('tenants/{domain}/students/promote', [StudentPromotionController::class, 'promoteClass']);
     Route::post('tenants/{domain}/students/graduate', [StudentPromotionController::class, 'markGraduated']);
+
+    // ? Posts Management (Admin Only)
+    Route::get('tenants/{domain}/admin/posts', [PostController::class, 'adminIndex']);
+    Route::patch('tenants/{domain}/posts/{id}/status', [PostController::class, 'updateStatus']);
 });
 
 // ?For the Teachers and admin
@@ -238,6 +243,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
     // ? Student History viewing
     Route::get('tenants/{domain}/students/{id}/history', [StudentPromotionController::class, 'getStudentHistory']);
+
+    // ? Posts Creation and Management (Students, Teachers, Admin)
+    Route::post('tenants/{domain}/posts', [PostController::class, 'store']);
+    Route::put('tenants/{domain}/posts/{id}', [PostController::class, 'update']);
+    Route::delete('tenants/{domain}/posts/{id}', [PostController::class, 'destroy']);
 });
 
 
@@ -246,9 +256,9 @@ Route::middleware(['tenant'])->group(function () {
 
 
     //? For Club Section
-    
-    Route::get('tenants/{domain}/clubs',[ClubCOntroller::class, 'index']);
-    Route::get('tenants/{domain}/clubs/{id}',[ClubCOntroller::class, 'show']);
+
+    Route::get('tenants/{domain}/clubs', [ClubCOntroller::class, 'index']);
+    Route::get('tenants/{domain}/clubs/{id}', [ClubCOntroller::class, 'show']);
     Route::get('tenants/{domain}/clubs/{id}/students', [ClubController::class, 'students']);
 
 
@@ -282,12 +292,15 @@ Route::middleware(['tenant'])->group(function () {
     //? Gallery routes for website
     Route::get('tenants/{domain}/gallery', [GalleryController::class, 'index']);
     Route::get('tenants/{domain}/gallery/{id}', [GalleryController::class, 'show']);
+
+    // ? Posts Public routes
+    Route::get('tenants/{domain}/posts', [PostController::class, 'index']);
+    Route::get('tenants/{domain}/posts/{id}', [PostController::class, 'show']);
 });
 
 // ?Register New Government account
 Route::post("/auth/gov", [GovernmentController::class, 'register']);
 Route::post("/auth/gov/login", [GovernmentController::class, 'login']);
-
 
 
 // ? Apis which needs everywhere access
