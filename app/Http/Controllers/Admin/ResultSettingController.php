@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Event;
 use App\Models\Admin\ResultSetting;
 use Illuminate\Http\Request;
 
@@ -60,6 +61,27 @@ class ResultSettingController extends Controller
 
         // Create ResultSetting
         $setting = ResultSetting::create($validated);
+
+
+        //To create Event for the examinaltion, 
+
+        if (!empty($validated['terms'])) {
+
+            foreach ($validated['terms'] as $termData) {
+
+                // Create term
+                $term = $setting->terms()->create($termData);
+
+                // Create Exam Event only if exam_date exists
+                if (!empty($termData['exam_date'])) {
+                    Event::create([
+                        'title' => $termData['name'] . ' Exam',
+                        'date' => $termData['exam_date'],
+                        'type' => 'exam',
+                    ]);
+                }
+            }
+        }
 
         // Create terms for this ResultSetting
         if (!empty($validated['terms'])) {

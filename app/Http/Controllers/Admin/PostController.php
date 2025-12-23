@@ -54,8 +54,8 @@ class PostController extends Controller
 
         $data = [
             'user_id' => $user->id,
-            'title' => $request->title,
-            'content' => $request->content,
+            'title' => $request->input('title'),
+            'content' => $request->input('content'),
             'status' => $isAdmin ? 'approved' : 'pending',
             'is_admin_post' => $isAdmin,
         ];

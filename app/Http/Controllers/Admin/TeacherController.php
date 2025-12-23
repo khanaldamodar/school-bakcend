@@ -59,7 +59,7 @@ class TeacherController extends Controller
 
     public function index()
     {
-        $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles'])->get();
+        $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles', 'user'])->get();
 
         return response()->json([
             'status' => true,
@@ -211,7 +211,7 @@ class TeacherController extends Controller
 
     public function show($domain, $id)
     {
-        $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles'])->findOrFail($id);
+        $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles', 'user'])->findOrFail($id);
         // dd($teacher);
         return response()->json([
             'status' => true,
@@ -323,17 +323,13 @@ class TeacherController extends Controller
             ]);
 
             //  Sync subjects
-            if (!empty($data['subject_ids'])) {
-                $teacher->subjects()->sync($data['subject_ids']);
-            } else {
-                $teacher->subjects()->sync([]);
+            if ($request->has('subject_ids')) {
+                $teacher->subjects()->sync($data['subject_ids'] ?? []);
             }
 
             // Sync Roles
-            if (!empty($data['role_ids'])) {
-                $teacher->roles()->sync($data['role_ids']);
-            } else {
-                $teacher->roles()->sync([]);
+            if ($request->has('role_ids')) {
+                $teacher->roles()->sync($data['role_ids'] ?? []);
             }
 
             //  Update class teacher assignment
@@ -388,7 +384,7 @@ class TeacherController extends Controller
     {
         $user = $request->user();
 
-        $teacher = Teacher::with(['classTeacherOf', 'classSubjects'])->where('user_id', $user->id)->first();
+        $teacher = Teacher::with(['classTeacherOf', 'classSubjects', 'roles'])->where('user_id', $user->id)->first();
 
         if (!$teacher) {
             return response()->json([
@@ -432,6 +428,12 @@ class TeacherController extends Controller
                 'phone' => $teacher->phone,
                 'class_teacher_of' => $teacher->classTeacherOf->id ?? null,
                 'class_name' => $teacher->classTeacherOf->name ?? null,
+                'roles' => $teacher->roles->map(function ($role) {
+                    return [
+                        'id' => $role->id,
+                        'role_name' => $role->role_name,
+                    ];
+                }),
                 'classes' => $classes,
             ]
         ]);
