@@ -9,8 +9,25 @@ use Illuminate\Validation\Rule;
 class ClassController extends Controller
 {
 
-    public function index($domain)
+    public function index(Request $request, $domain)
     {
+        if ($request->query('slim')) {
+            $classes = SchoolClass::select('id', 'name', 'section')->get();
+
+            // Apply the same sorting for consistency
+            $classes = $classes->sortBy(function ($class) {
+                preg_match('/\d+/', $class->name, $matches);
+                $gradeNumber = $matches[0] ?? 0;
+                return sprintf('%03d-%s', $gradeNumber, $class->section ?? '');
+            })->values();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Classes (slim) fetched successfully',
+                'data' => $classes
+            ]);
+        }
+
         $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
             ->with([
                 'classTeacher:id,name',

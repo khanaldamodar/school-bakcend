@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Admin\Result;
 use App\Models\Admin\ResultSetting;
 use App\Models\Admin\Term;
+use App\Models\Admin\AcademicYear;
 use Exception;
 
 class ResultCalculationService
@@ -24,6 +25,16 @@ class ResultCalculationService
         }
         
         return $resultSetting;
+    }
+
+    /**
+     * Get the current academic year
+     * 
+     * @return AcademicYear|null
+     */
+    public function getCurrentAcademicYear(): ?AcademicYear
+    {
+        return AcademicYear::current();
     }
 
     /**
@@ -138,11 +149,21 @@ class ResultCalculationService
      * @param ResultSetting $resultSetting
      * @return array|null
      */
-    public function calculateWeightedFinalResult(int $studentId, int $classId, ResultSetting $resultSetting): ?array
+    public function calculateWeightedFinalResult(int $studentId, int $classId, ResultSetting $resultSetting, ?int $academicYearId = null): ?array
     {
         // Only calculate if calculation_method is weighted
         if ($resultSetting->calculation_method !== 'weighted') {
             return null;
+        }
+
+        // Use current academic year if not provided
+        if (!$academicYearId) {
+            $currentYear = $this->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        if (!$academicYearId) {
+            return null; // Cannot calculate without academic year context
         }
 
         // Get all terms
@@ -162,6 +183,7 @@ class ResultCalculationService
             $results = Result::where('student_id', $studentId)
                 ->where('class_id', $classId)
                 ->where('term_id', $term->id)
+                ->where('academic_year_id', $academicYearId)
                 ->get();
 
             if ($results->isEmpty()) {

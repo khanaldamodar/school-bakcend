@@ -12,6 +12,7 @@ class Result extends Model
         'subject_id',
         'teacher_id',
         'term_id',
+        'academic_year_id',
         'marks_theory',
         'marks_practical',
         'gpa',
@@ -21,6 +22,11 @@ class Result extends Model
         'exam_date',
         'remarks',
     ];
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class);
+    }
 
     // public function student()
     // {

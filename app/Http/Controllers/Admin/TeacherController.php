@@ -393,14 +393,18 @@ class TeacherController extends Controller
             ], 404);
         }
 
-        // Group subjects by class_id
+        // Pre-fetch all classes for this teacher to avoid N+1 problem
         $classes = [];
+        $classIds = $teacher->classSubjects->pluck('pivot.class_id')->unique();
+        $allClasses = SchoolClass::whereIn('id', $classIds)->select('id', 'name')->get()->keyBy('id');
 
         foreach ($teacher->classSubjects as $subject) {
             $classId = $subject->pivot->class_id;
 
             if (!isset($classes[$classId])) {
-                $cls = SchoolClass::find($classId); // fetch class info
+                $cls = $allClasses->get($classId);
+                if (!$cls) continue;
+
                 $classes[$classId] = [
                     'id' => $cls->id,
                     'name' => $cls->name,

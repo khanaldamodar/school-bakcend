@@ -404,10 +404,13 @@ class StudentController extends Controller
 
     public function filterByClass(Request $request, $domain, $classId)
     {
+        $query = Student::where('class_id', $classId);
 
-        $students = Student::with(['class', 'parents'])
-            ->where('class_id', $classId)
-            ->get();
+        if ($request->query('minimal')) {
+            $students = $query->select('id', 'first_name', 'middle_name', 'last_name', 'roll_number as roll_no', 'image', 'class_id')->get();
+        } else {
+            $students = $query->with(['class', 'parents'])->get();
+        }
 
         return response()->json([
             'status' => true,

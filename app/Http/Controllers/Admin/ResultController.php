@@ -87,12 +87,27 @@ class ResultController extends Controller
                 'class_id' => 'required|exists:classes,id',
                 'subject_id' => 'required|exists:subjects,id',
                 'term_id' => 'required|exists:terms,id',
+                'academic_year_id' => 'nullable|exists:academic_years,id',
                 'marks_theory' => 'required|numeric|min:0',
                 'marks_practical' => 'required|numeric|min:0',
                 'exam_type' => 'nullable|string|max:255',
                 'exam_date' => 'nullable',
                 'remarks' => 'nullable|string|max:1000',
             ]);
+            
+            // Get academic year
+            $academicYearId = $validated['academic_year_id'] ?? null;
+            if (!$academicYearId) {
+                $currentYear = $calculationService->getCurrentAcademicYear();
+                $academicYearId = $currentYear?->id;
+            }
+
+            if (!$academicYearId) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No active academic year found. Please create one first.'
+                ], 400);
+            }
             
             // Validate term_id exists in ResultSetting
             if (!$calculationService->validateTerm($validated['term_id'], $resultSetting)) {
@@ -123,6 +138,7 @@ class ResultController extends Controller
                 'subject_id' => $validated['subject_id'],
                 'teacher_id' => $teacherId,
                 'term_id' => $validated['term_id'],
+                'academic_year_id' => $academicYearId,
                 'marks_theory' => $validated['marks_theory'],
                 'marks_practical' => $validated['marks_practical'],
                 'gpa' => $calculatedResult['gpa'],
@@ -272,7 +288,7 @@ class ResultController extends Controller
         $result->save();
         
         // Update final result
-        $this->updateFinalResult($result->student_id, $result->class_id);
+        $this->updateFinalResult($result->student_id, $result->class_id, $result->academic_year_id);
 
         return response()->json([
             'status' => true,
@@ -430,46 +446,53 @@ class ResultController extends Controller
         // fetch all results including past classes
         $results = Result::with([
             'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
-            'activities.activity:id,activity_name,full_marks'
+            'activities.activity:id,activity_name,full_marks',
+            'academicYear'
         ])
-            ->where('student_id', $student->id) // use student.id, not user_id
+            ->where('student_id', $student->id)
             ->get()
-            ->groupBy(['class_id', 'exam_type']); // Group by class + exam
+            ->groupBy(['academic_year_id', 'class_id', 'exam_type']); 
 
         $formattedResults = [];
-        $overallGPA = []; // store overall GPA per class & exam type
+        $overallGPA = []; // store overall GPA per academic year, class & exam type
 
-        foreach ($results as $classId => $exams) {
-            $className = SchoolClass::find($classId)->name ?? 'Unknown Class';
+        foreach ($results as $academicYearId => $classes) {
+            $academicYear = AcademicYear::find($academicYearId);
+            $academicYearName = $academicYear ? $academicYear->name : 'Unknown Year';
 
-            foreach ($exams as $examType => $subjects) {
-                // Format individual subjects
-                $formattedResults[$className][$examType] = $subjects->map(function ($result) {
-                    $activityMarks = $result->activities->sum('marks');
-                    $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+            foreach ($classes as $classId => $exams) {
+                $className = SchoolClass::find($classId)->name ?? 'Unknown Class';
+                $key = "{$academicYearName} - {$className}";
 
-                    return [
-                        'subject_name' => $result->subject->name,
-                        'marks_theory' => $result->marks_theory,
-                        'max_theory' => $result->subject->theory_marks,
-                        'marks_practical' => $result->marks_practical,
-                        'max_practical' => $result->subject->practical_marks,
-                        'activity_marks' => $activityMarks,
-                        'activity_max_marks' => $activityMaxMarks,
-                        'total_obtained' => $result->marks_theory + $result->marks_practical + $activityMarks,
-                        'total_max' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
-                        'gpa' => $result->gpa,
-                        'exam_type' => $result->exam_type,
-                        'activities' => $result->activities->map(fn($a) => [
-                            'activity_name' => $a->activity->activity_name,
-                            'marks_obtained' => $a->marks,
-                            'full_marks' => $a->activity->full_marks
-                        ])
-                    ];
-                });
+                foreach ($exams as $examType => $subjects) {
+                    // Format individual subjects
+                    $formattedResults[$key][$examType] = $subjects->map(function ($result) {
+                        $activityMarks = $result->activities->sum('marks');
+                        $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
 
-                // Calculate average GPA for this exam type
-                $overallGPA[$className][$examType] = number_format($subjects->avg('gpa'), 2);
+                        return [
+                            'subject_name' => $result->subject->name,
+                            'marks_theory' => $result->marks_theory,
+                            'max_theory' => $result->subject->theory_marks,
+                            'marks_practical' => $result->marks_practical,
+                            'max_practical' => $result->subject->practical_marks,
+                            'activity_marks' => $activityMarks,
+                            'activity_max_marks' => $activityMaxMarks,
+                            'total_obtained' => $result->marks_theory + $result->marks_practical + $activityMarks,
+                            'total_max' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
+                            'gpa' => $result->gpa,
+                            'exam_type' => $result->exam_type,
+                            'activities' => $result->activities->map(fn($a) => [
+                                'activity_name' => $a->activity->activity_name,
+                                'marks_obtained' => $a->marks,
+                                'full_marks' => $a->activity->full_marks
+                            ])
+                        ];
+                    });
+
+                    // Calculate average GPA for this exam type
+                    $overallGPA[$key][$examType] = number_format($subjects->avg('gpa'), 2);
+                }
             }
         }
 
@@ -598,9 +621,17 @@ class ResultController extends Controller
         // Build query:
         $query = Result::with(['student', 'subject']);
 
-        $query->where(function ($q) use ($teacher, $grouped) {
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $calculationService = new ResultCalculationService();
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        $query->where(function ($q) use ($teacher, $grouped, $academicYearId) {
             // include results created by this teacher
-            $q->where('teacher_id', $teacher->id);
+            $q->where('teacher_id', $teacher->id)
+                ->when($academicYearId, fn($sq) => $sq->where('academic_year_id', $academicYearId));
 
             // include results for the class teacher class (all subjects)
             if ($teacher->class_teacher_of) {
@@ -633,11 +664,24 @@ class ResultController extends Controller
 
 
     // Get the result by the class For the admin
-    public function classLedger($domain, $classId)
+    public function classLedger(Request $request, $domain, $classId)
     {
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $calculationService = new ResultCalculationService();
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
         // Fetch all students in the class
-        $students = Student::where('class_id', $classId)
-            ->with(['results.subject', "class"]) // eager load results and subjects
+        $students = Student::select('id', 'first_name', 'last_name', 'class_id')
+            ->where('class_id', $classId)
+            ->with(['results' => function($q) use ($academicYearId) {
+                $q->with('subject:id,name,theory_marks,practical_marks');
+                if ($academicYearId) {
+                    $q->where('academic_year_id', $academicYearId);
+                }
+            }])
             ->get();
 
         $ledger = [];
@@ -717,11 +761,19 @@ class ResultController extends Controller
 
 
         // Base query for results with relationships
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $calculationService = new ResultCalculationService();
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
         $query = Result::with(relations: [
             'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'class:id,name,class_code',
             'teacher:id,first_name,last_name'
-        ])->where('student_id', $student->id);
+        ])->where('student_id', $student->id)
+          ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId));
 
 
         // Role-based access control
@@ -806,6 +858,7 @@ class ResultController extends Controller
 
         $validated = $request->validate([
             'class_id' => 'required|exists:school_classes,id',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
             'exam_type' => 'required|string|max:255',
             'exam_date' => 'required',
             'results' => 'required|array|min:1',
@@ -814,6 +867,17 @@ class ResultController extends Controller
             'results.*.marks_theory' => 'required|numeric|min:0',
             'results.*.marks_practical' => 'required|numeric|min:0',
         ]);
+
+        $calculationService = new ResultCalculationService();
+        $academicYearId = $validated['academic_year_id'] ?? null;
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        if (!$academicYearId) {
+            return response()->json(['status' => false, 'message' => 'No active academic year found.'], 400);
+        }
 
         $resultsData = [];
 
@@ -831,7 +895,8 @@ class ResultController extends Controller
                 'class_id' => $validated['class_id'],
                 'subject_id' => $data['subject_id'],
                 'teacher_id' => $user->id ?? null,
-                // 'teacher_id' => 25 ?? null,
+                'term_id' => null, // bulk store often used for legacy, might not have terms
+                'academic_year_id' => $academicYearId,
                 'marks_theory' => $data['marks_theory'],
                 'marks_practical' => $data['marks_practical'],
                 'gpa' => $gpa,
@@ -872,6 +937,7 @@ class ResultController extends Controller
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
             'term_id' => 'required|exists:terms,id',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable|date',
             'remarks'=>'nullable|string|max:1000',
@@ -888,6 +954,16 @@ class ResultController extends Controller
             'students.*.results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
             'students.*.results.*.activities.*.marks' => 'required|numeric|min:0',
         ]);
+        
+        $academicYearId = $validated['academic_year_id'] ?? null;
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        if (!$academicYearId) {
+            return response()->json(['status' => false, 'message' => 'No active academic year found.'], 400);
+        }
         
         // Validate term_id exists in ResultSetting
         if (!$calculationService->validateTerm($validated['term_id'], $resultSetting)) {
@@ -916,6 +992,7 @@ class ResultController extends Controller
                         ->where('class_id', $validated['class_id'])
                         ->where('subject_id', $resultData['subject_id'])
                         ->where('term_id', $validated['term_id'])
+                        ->where('academic_year_id', $academicYearId)
                         ->exists();
 
 
@@ -976,6 +1053,7 @@ class ResultController extends Controller
                         'subject_id' => $resultData['subject_id'],
                         'teacher_id' => $teacher->id,
                         'term_id' => $validated['term_id'],
+                        'academic_year_id' => $academicYearId,
                         'marks_theory' => $resultData['marks_theory'],
                         'marks_practical' => $resultData['marks_practical'],
                         'exam_type' => $validated['exam_type'] ?? null,
@@ -1011,7 +1089,7 @@ class ResultController extends Controller
             
             // Update final results for all affected students
             foreach ($validated['students'] as $studentData) {
-                $this->updateFinalResult($studentData['student_id'], $validated['class_id']);
+                $this->updateFinalResult($studentData['student_id'], $validated['class_id'], $academicYearId);
             }
 
             DB::commit();
@@ -1039,8 +1117,16 @@ class ResultController extends Controller
         $request->validate([
             'student_id' => 'exists:students,id',
             'class_id' => 'exists:classes,id',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
             'exam_type' => 'nullable|string|max:255',
         ]);
+
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $calculationService = new ResultCalculationService();
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
 
         // Fetch results with subject, teacher, and activities
         $results = Result::with([
@@ -1050,6 +1136,7 @@ class ResultController extends Controller
         ])
             ->where('student_id', $studentId)
             ->where('class_id', $classId)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->when($examType, fn($q) => $q->where('exam_type', $examType))
             ->get();
 
@@ -1109,16 +1196,22 @@ class ResultController extends Controller
         $examType = $request->query('exam_type');
 
         // Fetch class results
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $calculationService = new ResultCalculationService();
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
         $results = Result::with([
             'student:id,first_name,last_name,roll_number',
             'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'activities.activity:id,activity_name,full_marks,pass_marks'
         ])
             ->where('class_id', $classId)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->when($examType, function ($q) use ($examType) {
                 $q->where('exam_type', $examType);
-
-
             })
             ->orderBy('student_id')
             ->get();
@@ -1135,9 +1228,9 @@ class ResultController extends Controller
         // Calculate Ranks per Exam Type
         $ranksByExam = $results->groupBy('exam_type')->map(function ($examResults) {
             $studentScores = $examResults->groupBy('student_id')->map(function ($items) {
-                return $items->sum(function ($result) {
-                    return $result->marks_theory + $result->marks_practical + $result->activities->sum('marks');
-                });
+                // Use average GPA for a more robust ranking than total marks,
+                // as total marks depends on the number of subjects which might vary.
+                return $items->avg('gpa');
             })->sortDesc();
 
             $rank = 1;
@@ -1284,7 +1377,7 @@ class ResultController extends Controller
     /**
      * Helper to update final result for a student
      */
-    private function updateFinalResult($studentId, $classId)
+    private function updateFinalResult($studentId, $classId, $academicYearId = null)
     {
         try {
             $calculationService = new ResultCalculationService();
@@ -1296,12 +1389,13 @@ class ResultController extends Controller
             if ($resultSetting->calculation_method !== 'weighted') return;
 
             // Calculate
-            $data = $calculationService->calculateWeightedFinalResult($studentId, $classId, $resultSetting);
+            $data = $calculationService->calculateWeightedFinalResult($studentId, $classId, $resultSetting, $academicYearId);
 
             if ($data && isset($data['final_result'])) {
-                // Update all results for this student/class with the final result
+                // Update all results for this student/class/year with the final result
                 Result::where('student_id', $studentId)
                     ->where('class_id', $classId)
+                    ->where('academic_year_id', $academicYearId)
                     ->update(['final_result' => $data['final_result']]);
             }
         } catch (\Exception $e) {
@@ -1337,6 +1431,12 @@ class ResultController extends Controller
         }
 
         // Fetch all students in the class with their names
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+        
         $students = Student::where('class_id', $classId)->get();
 
         if ($students->isEmpty()) {
@@ -1355,13 +1455,15 @@ class ResultController extends Controller
             $finalResultData = $calculationService->calculateWeightedFinalResult(
                 $student->id,
                 $classId,
-                $resultSetting
+                $resultSetting,
+                $academicYearId // You might need to get this from request or session
             );
 
             if ($finalResultData && isset($finalResultData['final_result'])) {
-                 // Update all results for THIS student/class with THEIR final result
+                 // Update all results for THIS student/class/year with THEIR final result
                  $updated = Result::where('student_id', $student->id)
                     ->where('class_id', $classId)
+                    // ->where('academic_year_id', $academicYearId) // Should filter by year if we want to be precise
                     ->update(['final_result' => $finalResultData['final_result']]);
                 
                 $successCount++;
