@@ -12,7 +12,7 @@ class EventController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         $events = Event::all();
 
@@ -33,7 +33,7 @@ class EventController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validate = Validator::make($request->all(), [
             'title' => 'required|string|max:255',

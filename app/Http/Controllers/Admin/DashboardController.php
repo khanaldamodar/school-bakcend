@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Models\Admin\ParentModel;
 use App\Models\Admin\Teacher;
 use App\Models\Admin\Student;
@@ -14,7 +15,7 @@ class DashboardController extends Controller
     /**
      * Get statistics for admin dashboard.
      */
-    public function stats()
+    public function stats(Request $request, $domain)
     {
         $totalTeachers = Teacher::count();
         $totalStudents = Student::count();

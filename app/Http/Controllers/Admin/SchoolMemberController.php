@@ -14,7 +14,7 @@ class SchoolMemberController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         try {
             $members = SchoolMember::orderBy('id', 'desc')->get();
@@ -33,7 +33,7 @@ class SchoolMemberController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         try {
             $validator = Validator::make($request->all(), [

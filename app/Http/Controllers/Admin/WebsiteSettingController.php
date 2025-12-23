@@ -11,7 +11,7 @@ class WebsiteSettingController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         $websiteSettings = WebsiteSetting::get();
 
@@ -24,7 +24,7 @@ class WebsiteSettingController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validatedData = $request->validate([
             'hero_title' => 'required|string|max:255',

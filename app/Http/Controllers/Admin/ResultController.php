@@ -19,7 +19,7 @@ class ResultController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request, $domain)
     {
         $user = $request->user();
 
@@ -63,7 +63,7 @@ class ResultController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         try {
             $user = $request->user();

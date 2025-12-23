@@ -15,7 +15,7 @@ class ClubController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         $clubs = Club::all();
 
@@ -36,7 +36,7 @@ class ClubController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',

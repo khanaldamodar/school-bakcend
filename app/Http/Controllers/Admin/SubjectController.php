@@ -15,7 +15,7 @@ class SubjectController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         $subjects = Subject::with('teacher:id,name,email', 'activities')->get();
 
@@ -305,7 +305,7 @@ class SubjectController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:subjects,name',

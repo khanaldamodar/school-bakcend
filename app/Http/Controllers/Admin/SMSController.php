@@ -23,7 +23,7 @@ class SMSController extends Controller
     /**
      * Send SMS to: parents, students, teachers, or all.
      */
-    public function send(Request $request)
+    public function send(Request $request, $domain)
     {
         $request->validate([
             "target" => "required|in:parents,students,teachers,all",
@@ -137,7 +137,25 @@ class SMSController extends Controller
             "message" => "SMS sent successfully to {$numbers->count()} receivers."
         ]);
     }
-    public function getClass()
+    public function sendToTeachers(Request $request, $domain)
+    {
+        $numbers = Teacher::pluck("phone");
+        $message = $request->query('message', 'Default notification message');
+
+        foreach ($numbers as $phone) {
+            if ($phone) {
+                $this->sms->sendSMS($phone, $message);
+            }
+        }
+
+        return response()->json([
+            "status" => true,
+            "count" => $numbers->count(),
+            "message" => "SMS sent successfully to teachers."
+        ]);
+    }
+
+    public function getClass(Request $request, $domain)
     {
         $classes = SchoolClass::select('id', 'name')->get();
 

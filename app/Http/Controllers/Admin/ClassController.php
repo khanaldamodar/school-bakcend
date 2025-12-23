@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 class ClassController extends Controller
 {
 
-    public function index()
+    public function index($domain)
     {
         $classes = SchoolClass::select('id', 'name', 'section', 'class_teacher_id')
             ->with([

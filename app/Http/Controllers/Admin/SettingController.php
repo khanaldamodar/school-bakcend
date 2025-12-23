@@ -12,7 +12,7 @@ class SettingController extends Controller
 {
 
     // ?To get the settings of the school
-    public function index()
+    public function index($domain)
     {
 
         $settings = Setting::with('resultSetting', 'resultSetting.terms')->first();
@@ -26,7 +26,7 @@ class SettingController extends Controller
     }
 
 
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validator = Validator::make($request->all(), [
             'name' => "required|string",
@@ -79,7 +79,7 @@ class SettingController extends Controller
 
 
     // ?To update the settings of the school
-    public function update(Request $request)
+    public function update(Request $request, $domain)
     {
         $settings = Setting::first();
 

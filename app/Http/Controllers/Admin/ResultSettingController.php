@@ -12,7 +12,7 @@ class ResultSettingController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         $setting = ResultSetting::with('terms')->get();
 
@@ -33,7 +33,7 @@ class ResultSettingController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validated = $request->validate([
             'setting_id' => 'required|exists:settings,id',

@@ -10,7 +10,7 @@ use App\Services\TenantLogger;
 
 class ExtraCurricularActivityController extends Controller
 {
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $request->validate([
             'subject_id' => 'required|exists:subjects,id',
@@ -30,7 +30,7 @@ class ExtraCurricularActivityController extends Controller
         ], 201);
     }
 
-    public function bulkStore(Request $request)
+    public function bulkStore(Request $request, $domain)
     {
         $request->validate([
             'activities' => 'required|array|min:1',

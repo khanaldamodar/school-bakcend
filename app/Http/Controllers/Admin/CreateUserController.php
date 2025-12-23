@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Validator;
 
 class CreateUserController extends Controller
 {
-    public function register(Request $request)
+    public function register(Request $request, $domain)
     {
 
 
@@ -51,7 +51,7 @@ class CreateUserController extends Controller
     }
 
 
-    public function show(Request $request)
+    public function show(Request $request, $domain)
     {
         $user = $request->user();
 
@@ -74,7 +74,7 @@ class CreateUserController extends Controller
 
     
    
-    public function login(Request $request)
+    public function login(Request $request, $domain)
     {
         // Validate login input
         $validator = Validator::make($request->all(), [
@@ -125,7 +125,7 @@ class CreateUserController extends Controller
         ]);
     }
 
-     public function logout(Request $request)
+     public function logout(Request $request, $domain)
     {
         $user = $request->user();
         

@@ -22,7 +22,7 @@ class StudentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request, $domain)
     {
         $query = Student::with(['class', 'parents']);
 
@@ -58,7 +58,7 @@ class StudentController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
 
         // Get the database name of the system
@@ -438,7 +438,7 @@ class StudentController extends Controller
     }
 
 
-    public function profile(Request $request)
+    public function profile(Request $request, $domain)
     {
         // $request->user() comes from Sanctum auth
         $userId = $request->user()->id;
@@ -462,7 +462,7 @@ class StudentController extends Controller
         ]);
     }
 
-    public function bulkUpload(Request $request)
+    public function bulkUpload(Request $request, $domain)
     {
         TenantLogger::studentInfo('Starting student bulk upload', ['request_ip' => $request->ip()]);
         $students = [];
@@ -819,6 +819,140 @@ class StudentController extends Controller
             Student::where('id', $student['id'])
                 ->update(['roll_number' => $index + 1]);
         }
+    }
+
+    /**
+     * Bulk promote students to a new class and academic year
+     */
+    public function promote(Request $request, $domain)
+    {
+        $validated = $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'exists:students,id',
+            'target_class_id' => 'required|exists:classes,id',
+            'target_academic_year_id' => 'required|exists:academic_years,id',
+            'remarks' => 'nullable|string'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            foreach ($validated['student_ids'] as $studentId) {
+                $student = Student::findOrFail($studentId);
+                $oldClassId = $student->class_id;
+
+                // Update old history status to promoted
+                StudentClassHistory::where('student_id', $studentId)
+                    ->where('status', 'active')
+                    ->update([
+                        'status' => 'promoted',
+                        'promoted_date' => now(),
+                    ]);
+
+                // Update student's current class
+                $student->class_id = $validated['target_class_id'];
+                $student->save();
+
+                // Generate new roll number in new class
+                $rollNumber = $this->generateRollNumber(
+                    $validated['target_class_id'],
+                    $student->first_name,
+                    $student->middle_name,
+                    $student->last_name,
+                    $student->id
+                );
+
+                $student->roll_number = $rollNumber;
+                $student->save();
+
+                // Create new history record
+                StudentClassHistory::create([
+                    'student_id' => $studentId,
+                    'class_id' => $validated['target_class_id'],
+                    'year' => now()->year,
+                    'academic_year_id' => $validated['target_academic_year_id'],
+                    'roll_number' => $rollNumber,
+                    'status' => 'active',
+                    'remarks' => $validated['remarks'] ?? 'Bulk Promotion'
+                ]);
+            }
+
+            // Reassign roll numbers for the source class (if needed, but usually promotion happens at end of year)
+            // Reassign roll numbers for the target class to maintain alphabetical order
+            $this->reassignRollNumbers($validated['target_class_id']);
+
+            DB::commit();
+            return response()->json([
+                'status' => true,
+                'message' => count($validated['student_ids']) . ' students promoted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Promotion failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk graduate students
+     */
+    public function graduate(Request $request, $domain)
+    {
+        $validated = $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'exists:students,id',
+            'remarks' => 'nullable|string'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            foreach ($validated['student_ids'] as $studentId) {
+                $student = Student::findOrFail($studentId);
+
+                // Update history status to graduated
+                StudentClassHistory::where('student_id', $studentId)
+                    ->where('status', 'active')
+                    ->update([
+                        'status' => 'graduated',
+                        'promoted_date' => now(),
+                        'remarks' => $validated['remarks'] ?? 'Graduated'
+                    ]);
+
+                // Update student status/class (optional: set class_id to null or a special value)
+                // For now, let's keep the class but mark history as graduated. 
+                // In some systems, we might move them to a 'Graduated' class or just deactivate them.
+            }
+
+            DB::commit();
+            return response()->json([
+                'status' => true,
+                'message' => count($validated['student_ids']) . ' students graduated successfully.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => false,
+                'message' => 'Graduation failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get student's class history
+     */
+    public function history($domain, $id)
+    {
+        $student = Student::findOrFail($id);
+        $history = StudentClassHistory::with(['class', 'academicYear'])
+            ->where('student_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'data' => $history
+        ]);
     }
 
     /**

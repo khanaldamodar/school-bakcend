@@ -18,7 +18,7 @@ class StudentPromotionController extends Controller
      * Promote students from one class to another
      * This is typically used at the end of an academic year
      */
-    public function promoteClass(Request $request)
+    public function promoteClass(Request $request, $domain)
     {
         $validated = $request->validate([
             'from_class_id' => 'required|exists:classes,id',
@@ -179,7 +179,7 @@ class StudentPromotionController extends Controller
     /**
      * Mark students as graduated
      */
-    public function markGraduated(Request $request)
+    public function markGraduated(Request $request, $domain)
     {
         $validated = $request->validate([
             'student_ids' => 'required|array|min:1',

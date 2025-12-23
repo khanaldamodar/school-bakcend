@@ -13,7 +13,7 @@ class AcademicYearController extends Controller
     /**
      * Display a listing of academic years
      */
-    public function index(Request $request)
+    public function index(Request $request, $domain)
     {
         $query = AcademicYear::query()->orderBy('start_date', 'desc');
 
@@ -39,7 +39,7 @@ class AcademicYearController extends Controller
     /**
      * Store a newly created academic year
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:academic_years,name',
@@ -199,7 +199,7 @@ class AcademicYearController extends Controller
     /**
      * Get the current academic year
      */
-    public function current()
+    public function current($domain)
     {
         $academicYear = AcademicYear::current();
 

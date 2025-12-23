@@ -13,7 +13,7 @@ class PostController extends Controller
     /**
      * Display a listing of approved posts. (Public API)
      */
-    public function index()
+    public function index($domain)
     {
         $posts = Post::approved()->with('user:id,name')->latest()->get();
 
@@ -27,7 +27,7 @@ class PostController extends Controller
     /**
      * Display all posts for admin management. (Admin API)
      */
-    public function adminIndex()
+    public function adminIndex($domain)
     {
         $posts = Post::with('user:id,name')->latest()->get();
 
@@ -41,7 +41,7 @@ class PostController extends Controller
     /**
      * Store a newly created post.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $request->validate([
             'title' => 'required|string|max:255',

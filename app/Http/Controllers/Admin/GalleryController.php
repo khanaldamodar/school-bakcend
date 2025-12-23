@@ -12,7 +12,7 @@ class GalleryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($domain)
     {
         $gallery = Gallery::all();
 
@@ -26,7 +26,7 @@ class GalleryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',

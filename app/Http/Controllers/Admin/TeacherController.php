@@ -57,7 +57,7 @@ class TeacherController extends Controller
     //     return $path;
 // }
 
-    public function index()
+    public function index($domain)
     {
         $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles', 'user'])->get();
 
@@ -69,7 +69,7 @@ class TeacherController extends Controller
     }
 
 
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
 
         $tenantDomain = tenant()->database;

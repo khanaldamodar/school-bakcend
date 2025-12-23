@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Validator;
 
 class TeacherRoleController extends Controller
 {
-    public function index()
+    public function index($domain)
     {
         $roles = TeacherRole::all();
         return response()->json([
@@ -18,7 +18,7 @@ class TeacherRoleController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, $domain)
     {
         $validator = Validator::make($request->all(), [
             'role_name' => 'required|string|max:255|unique:teacher_roles,role_name',
