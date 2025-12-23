@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\AcademicYearController;
 use App\Http\Controllers\Admin\StudentPromotionController;
+use App\Http\Controllers\Admin\TeacherRoleController;
 use App\Http\Controllers\Admin\WebsiteSettingController;
 use App\Http\Controllers\Government\AllTeachersController;
 use App\Http\Controllers\Government\AnalyticsController;
@@ -248,7 +249,7 @@ Route::middleware(['tenant'])->group(function () {
     
     Route::get('tenants/{domain}/clubs',[ClubCOntroller::class, 'index']);
     Route::get('tenants/{domain}/clubs/{id}',[ClubCOntroller::class, 'show']);
-    Route::get('/clubs/{id}/students', [ClubController::class, 'students']);
+    Route::get('tenants/{domain}/clubs/{id}/students', [ClubController::class, 'students']);
 
 
     // ? Analytical Report

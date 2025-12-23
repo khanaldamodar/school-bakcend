@@ -88,6 +88,7 @@ class SubjectController extends Controller
             'theory_marks' => 'sometimes|integer|min:0',
             'practical_marks' => 'sometimes|integer|min:0',
             'theory_pass_marks' => 'sometimes|decimal|min:0',
+            'subject_code' => 'nullable|string',
             'teacher_id' => 'nullable|exists:users,id',
 
             // ACTIVITY VALIDATION

@@ -212,7 +212,7 @@ class ClubController extends Controller
     }
 
 
-    public function students(string $id)
+    public function students(string $domain, string $id)
     {
         $club = Club::with([
             'students' => function ($query) {
