@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\WebsiteSetting;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 
 class WebsiteSettingController extends Controller
@@ -70,6 +71,11 @@ class WebsiteSettingController extends Controller
 
         // ✅ Create the website setting
         $websiteSetting = WebsiteSetting::create($validatedData);
+
+        TenantLogger::logCreate('website_settings', "Website settings created", [
+            'id' => $websiteSetting->id,
+            'hero_title' => $websiteSetting->hero_title
+        ]);
 
         return response()->json($websiteSetting, 201);
     }
@@ -146,6 +152,10 @@ class WebsiteSettingController extends Controller
 
         $websiteSetting->update($validatedData);
 
+        TenantLogger::logUpdate('website_settings', "Website settings updated", [
+            'id' => $websiteSetting->id
+        ]);
+
         return response()->json($websiteSetting, 200);
     }
 
@@ -162,6 +172,10 @@ class WebsiteSettingController extends Controller
         }
 
         $websiteSetting->delete();
+
+        TenantLogger::logDelete('website_settings', "Website settings deleted", [
+            'id' => $id
+        ]);
 
         return response()->json(['message' => 'Website setting deleted successfully.'], 200);
     }

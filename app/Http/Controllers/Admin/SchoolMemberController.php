@@ -8,6 +8,7 @@ use App\Models\Admin\SchoolMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Exception;
+use App\Services\TenantLogger;
 
 class SchoolMemberController extends Controller
 {
@@ -63,6 +64,11 @@ class SchoolMemberController extends Controller
             }
 
             $member = SchoolMember::create($data);
+
+            TenantLogger::logCreate('school_members', "School member created: {$member->name}", [
+                'id' => $member->id,
+                'name' => $member->name
+            ]);
 
             return response()->json([
                 'status' => true,
@@ -140,6 +146,10 @@ class SchoolMemberController extends Controller
 
             $member->update($data);
 
+            TenantLogger::logUpdate('school_members', "School member updated: {$member->name}", [
+                'id' => $member->id
+            ]);
+
             return response()->json([
                 'status' => true,
                 'message' => 'School member updated successfully.',
@@ -171,6 +181,11 @@ class SchoolMemberController extends Controller
             }
 
             $member->delete();
+
+            TenantLogger::logDelete('school_members', "School member deleted: {$member->name}", [
+                'id' => $id,
+                'name' => $member->name
+            ]);
 
             return response()->json([
                 'status' => true,

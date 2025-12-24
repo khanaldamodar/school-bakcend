@@ -5,6 +5,7 @@ use App\Helpers\ImageUploadHelper;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Setting;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -61,6 +62,11 @@ class SettingController extends Controller
             $data['favicon'] = $faviconPath;
         }
         $settings = Setting::create($data);
+
+        TenantLogger::logCreate('settings', "School settings created for {$settings->name}", [
+            'id' => $settings->id,
+            'name' => $settings->name
+        ]);
 
         return response()->json([
             'status' => true,
@@ -139,6 +145,11 @@ class SettingController extends Controller
 
         // === Update other fields ===
         $settings->update($validatedData);
+
+        TenantLogger::logUpdate('settings', "School settings updated for {$settings->name}", [
+            'id' => $settings->id,
+            'name' => $settings->name
+        ]);
 
         return response()->json([
             'status' => true,

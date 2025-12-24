@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Event;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -55,6 +56,12 @@ class EventController extends Controller
         $validatedEvent = $validate->validated();
 
         $event = Event::create($validatedEvent);
+
+        TenantLogger::logCreate('events', "Event created: {$event->title}", [
+            'id' => $event->id,
+            'title' => $event->title,
+            'date' => $event->date
+        ]);
 
         return response()->json([
             'status' => true,
@@ -123,6 +130,11 @@ class EventController extends Controller
 
         $event->update($validatedEvent);
 
+        TenantLogger::logUpdate('events', "Event updated: {$event->title}", [
+            'id' => $event->id,
+            'title' => $event->title
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => "Event Updated Successfully",
@@ -146,6 +158,11 @@ class EventController extends Controller
         }
 
         $event->delete();
+
+        TenantLogger::logDelete('events', "Event deleted: {$event->title}", [
+            'id' => $id,
+            'title' => $event->title
+        ]);
 
         return response()->json([
             'status' => true,

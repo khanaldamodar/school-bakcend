@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Event;
 use App\Models\Admin\ResultSetting;
 use Illuminate\Http\Request;
+use App\Services\TenantLogger;
 
 class ResultSettingController extends Controller
 {
@@ -88,6 +89,11 @@ class ResultSettingController extends Controller
             $setting->terms()->createMany($validated['terms']);
         }
 
+        TenantLogger::logCreate('result_settings', "Result setting created", [
+            'id' => $setting->id,
+            'calculation_method' => $setting->calculation_method
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Result setting created successfully',
@@ -168,6 +174,10 @@ class ResultSettingController extends Controller
             // Delete terms that were removed from request
             $resultSetting->terms()->whereNotIn('id', $termIdsFromRequest)->delete();
         }
+
+        TenantLogger::logUpdate('result_settings', "Result setting updated", [
+            'id' => $resultSetting->id
+        ]);
 
         return response()->json([
             'status' => true,

@@ -7,6 +7,7 @@ use App\Models\LoginAttempt;
 use App\Models\LoginHistory;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -41,6 +42,12 @@ class CreateUserController extends Controller
             'password' => bcrypt($credentials['password']),
             'phone' => $credentials['phone'],
             'role' => $credentials['role']
+        ]);
+
+        TenantLogger::logAuth("New user registered: {$data->name} ({$data->role})", [
+            'id' => $data->id,
+            'email' => $data->email,
+            'role' => $data->role
         ]);
 
         return response()->json([
@@ -115,6 +122,11 @@ class CreateUserController extends Controller
             $request->userAgent()
         );
 
+        TenantLogger::logAuth("User logged in: {$user->name}", [
+            'id' => $user->id,
+            'email' => $user->email
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Login successful',
@@ -133,6 +145,11 @@ class CreateUserController extends Controller
         LoginHistory::recordLogout($user->id);
 
         $user->currentAccessToken()->delete();
+
+        TenantLogger::logAuth("User logged out: {$user->name}", [
+            'id' => $user->id,
+            'email' => $user->email
+        ]);
 
         return response()->json([
             'status' => true,

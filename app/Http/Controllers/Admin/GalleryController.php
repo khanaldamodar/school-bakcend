@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Gallery;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 
 class GalleryController extends Controller
@@ -55,13 +56,17 @@ class GalleryController extends Controller
             }
         }
 
-        // Save gallery with media
         $gallery = Gallery::create([
             'title' => $validatedData['title'],
             'description' => $validatedData['description'] ?? null,
             'content_type' => $validatedData['content_type'],
             'for' => $validatedData['for'] ?? null,
             'media' => $uploadedMedia,  // Store JSON array
+        ]);
+
+        TenantLogger::logCreate('gallery', "Gallery item created: {$gallery->title}", [
+            'id' => $gallery->id,
+            'content_type' => $gallery->content_type
         ]);
 
         return response()->json([
@@ -171,6 +176,10 @@ class GalleryController extends Controller
             'media' => $finalMedia,
         ]);
 
+        TenantLogger::logUpdate('gallery', "Gallery item updated: {$gallery->title}", [
+            'id' => $gallery->id
+        ]);
+
         return response()->json([
             'message' => 'Gallery updated successfully',
             'data' => $gallery
@@ -190,6 +199,11 @@ class GalleryController extends Controller
         }
 
         $gallery->delete();
+
+        TenantLogger::logDelete('gallery', "Gallery item deleted: {$gallery->title}", [
+            'id' => $id,
+            'title' => $gallery->title
+        ]);
 
         return response()->json(['message' => 'Gallery deleted successfully'], 200);
     }

@@ -413,6 +413,11 @@ class StudentController extends Controller
         // Reassign roll numbers for the class after deletion
         $this->reassignRollNumbers($classId);
 
+        TenantLogger::logDelete('students', "Student deleted: {$student->first_name} {$student->last_name}", [
+            'id' => $id,
+            'name' => "{$student->first_name} {$student->last_name}"
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => "Student Deleted Successfully",

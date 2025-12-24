@@ -10,6 +10,7 @@ use App\Services\SMSService;
 use App\Models\Admin\Student;
 use App\Models\Admin\Teacher;
 use App\Models\Admin\ParentModel;
+use App\Services\TenantLogger;
 
 class SMSController extends Controller
 {
@@ -130,6 +131,11 @@ class SMSController extends Controller
         foreach ($numbers as $phone) {
             $this->sms->sendSMS($phone, $message);
         }
+
+        TenantLogger::tenant('info', "Sent bulk SMS to {$target}", [
+            'count' => $numbers->count(),
+            'target' => $target
+        ]);
 
         return response()->json([
             "status" => true,

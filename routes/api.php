@@ -30,6 +30,7 @@ use App\Http\Controllers\Government\IndividualSchoolTeachers;
 use App\Http\Controllers\Government\SchoolController;
 use App\Http\Controllers\SuperAdmin\CentralController;
 use App\Http\Controllers\SuperAdmin\TenantController;
+use App\Http\Controllers\SuperAdmin\SystemLogController;
 use Illuminate\Support\Facades\Route;
 
 //? Super Admin routes 
@@ -45,6 +46,12 @@ Route::prefix('superadmin/school')->middleware(['auth:sanctum'])->group(function
     Route::put('/{tenant}', [TenantController::class, 'update']); // Update school
     Route::patch('/{tenant}', [TenantController::class, 'update']); // Partial update
     Route::delete('/{tenant}', [TenantController::class, 'destroy']); // Delete school
+});
+
+//? System Logs for Super Admin
+Route::prefix('superadmin/logs')->middleware(['auth:sanctum'])->group(function () {
+    Route::get('/', [SystemLogController::class, 'index']);
+    Route::get('/{id}', [SystemLogController::class, 'show']);
 });
 
 
@@ -180,6 +187,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     // ? Posts Management (Admin Only)
     Route::get('tenants/{domain}/admin/posts', [PostController::class, 'adminIndex']);
     Route::patch('tenants/{domain}/posts/{id}/status', [PostController::class, 'updateStatus']);
+
+    // ? SMS sending (Admin Only)
+    Route::post('tenants/{domain}/send-sms', [SMSController::class, 'send']);
+    Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class, 'sendToTeachers']);
 });
 
 // ?For the Teachers and admin
@@ -285,8 +296,6 @@ Route::middleware(['tenant'])->group(function () {
 
     //? Report api for school
     Route::get('tenants/{domain}/reports', [ReportController::class, 'getReports']);
-    Route::post('tenants/{domain}/send-sms', [SMSController::class, 'send']);
-    Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class, 'sendToTeachers']);
 
 
     //? Gallery routes for website
@@ -335,6 +344,3 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
 
 });
-
-
-

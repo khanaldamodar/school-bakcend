@@ -17,10 +17,16 @@ class SMSService
         'message'     => $encodedMessage,
     ]);
  
-    \Log::info("SMSPrima URL: " . $url);
-    $response = Http::get($url);
-    \Log::info("SMSPrima Response: " . $response->body());
-    return $response->body();
+        \Log::info("Sending SMS to: " . $phone);
+        $response = Http::get($url);
+        
+        if ($response->successful()) {
+            \Log::info("SMS sent successfully to: " . $phone);
+        } else {
+            \Log::error("Failed to send SMS to: " . $phone . ". Response: " . $response->body());
+        }
+
+        return $response->body();
 }
 
 }

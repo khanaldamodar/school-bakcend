@@ -6,6 +6,7 @@ use App\Models\Admin\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use App\Services\TenantLogger;
 class ClassController extends Controller
 {
 
@@ -113,6 +114,12 @@ class ClassController extends Controller
                 $schoolClass->subjects()->sync($syncData);
             }
 
+            TenantLogger::logCreate('classes', "Class created: {$schoolClass->name}", [
+                'id' => $schoolClass->id,
+                'name' => $schoolClass->name,
+                'section' => $schoolClass->section
+            ]);
+
             return response()->json([
                 'status' => true,
                 'message' => 'Class created successfully',
@@ -186,6 +193,10 @@ class ClassController extends Controller
             }
         });
 
+        TenantLogger::logUpdate('classes', "Class updated: {$schoolClass->name}", [
+            'id' => $schoolClass->id
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Class updated successfully',
@@ -196,6 +207,11 @@ class ClassController extends Controller
     {
         $schoolClass = SchoolClass::findOrFail($id);
         $schoolClass->delete();
+
+        TenantLogger::logDelete('classes', "Class deleted: {$schoolClass->name}", [
+            'id' => $id,
+            'name' => $schoolClass->name
+        ]);
 
         return response()->json([
             'status' => true,

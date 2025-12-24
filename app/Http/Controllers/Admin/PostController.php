@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Post;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -69,6 +70,12 @@ class PostController extends Controller
 
         $post = Post::create($data);
 
+        TenantLogger::logCreate('posts', "Post created: {$post->title}", [
+            'id' => $post->id,
+            'status' => $post->status,
+            'is_admin_post' => $post->is_admin_post
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => $isAdmin ? 'Post created and approved successfully' : 'Post created successfully, waiting for approval',
@@ -118,6 +125,10 @@ class PostController extends Controller
 
         $post->update($validated);
 
+        TenantLogger::logUpdate('posts', "Post updated: {$post->title}", [
+            'id' => $post->id
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Post updated successfully',
@@ -136,6 +147,11 @@ class PostController extends Controller
 
         $post = Post::findOrFail($id);
         $post->update(['status' => $request->status]);
+
+        TenantLogger::logUpdate('posts', "Post status updated to {$request->status} for: {$post->title}", [
+            'id' => $post->id,
+            'status' => $request->status
+        ]);
 
         return response()->json([
             'status' => true,
@@ -158,6 +174,11 @@ class PostController extends Controller
         }
 
         $post->delete();
+
+        TenantLogger::logDelete('posts', "Post deleted: {$post->title}", [
+            'id' => $id,
+            'title' => $post->title
+        ]);
 
         return response()->json([
             'status' => true,

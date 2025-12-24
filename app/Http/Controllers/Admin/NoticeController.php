@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Notice;
+use App\Services\TenantLogger;
 use Illuminate\Http\Request;
 
 class NoticeController extends Controller
@@ -51,6 +52,12 @@ class NoticeController extends Controller
         }
 
         $notice = Notice::create($validatedData);
+
+        TenantLogger::logCreate('notices', "Notice created: {$notice->title}", [
+            'id' => $notice->id,
+            'title' => $notice->title
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Notice created successfully',
@@ -112,6 +119,12 @@ class NoticeController extends Controller
         }
 
         $notice->update($validatedData);
+
+        TenantLogger::logUpdate('notices', "Notice updated: {$notice->title}", [
+            'id' => $notice->id,
+            'title' => $notice->title
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Notice updated successfully',
@@ -143,6 +156,12 @@ class NoticeController extends Controller
         }
 
         $notice->delete();
+
+        TenantLogger::logDelete('notices', "Notice deleted: {$notice->title}", [
+            'id' => $id,
+            'title' => $notice->title
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => 'Notice deleted successfully'

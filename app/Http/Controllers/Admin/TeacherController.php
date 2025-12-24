@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Cloudinary\Cloudinary;
 use Illuminate\Validation\Rule;
+use App\Services\TenantLogger;
 
 class TeacherController extends Controller
 {
@@ -192,6 +193,11 @@ class TeacherController extends Controller
 
             DB::commit();
 
+            TenantLogger::logCreate('teachers', "Teacher registered: {$teacher->name}", [
+                'id' => $teacher->id,
+                'email' => $teacher->email
+            ]);
+
             return response()->json([
                 'status' => true,
                 'message' => 'Teacher created successfully',
@@ -341,6 +347,10 @@ class TeacherController extends Controller
 
             DB::commit();
 
+            TenantLogger::logUpdate('teachers', "Teacher updated: {$teacher->name}", [
+                'id' => $teacher->id
+            ]);
+
             return response()->json([
                 'status' => true,
                 'message' => 'Teacher updated successfully',
@@ -378,6 +388,11 @@ class TeacherController extends Controller
                 ]);
             }
         }
+
+        TenantLogger::logDelete('teachers', "Teacher deleted: {$teacher->name}", [
+            'id' => $id,
+            'name' => $teacher->name
+        ]);
 
         return response()->json([
             'status' => true,
