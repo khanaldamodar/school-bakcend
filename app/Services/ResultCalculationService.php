@@ -168,56 +168,91 @@ class ResultCalculationService
 
         // Get all terms
         $terms = $resultSetting->terms()->orderBy('id')->get();
-        
-        if ($terms->isEmpty()) {
-            return null;
+        if ($terms->isEmpty()) return null;
+
+        // Get all subjects for this student in this class/year
+        $subjectIds = Result::where('student_id', $studentId)
+            ->where('class_id', $classId)
+            ->where('academic_year_id', $academicYearId)
+            ->pluck('subject_id')
+            ->unique();
+
+        if ($subjectIds->isEmpty()) return null;
+
+        $subjectResults = [];
+        $totalWeight = 0;
+        $overallWeightedGPA = 0;
+        $overallWeightedPercentage = 0;
+
+        foreach ($subjectIds as $subjectId) {
+            $weightedSubjectGPA = 0;
+            $weightedSubjectPercentage = 0;
+            $termWeightSum = 0;
+            $subjectName = '';
+
+            foreach ($terms as $term) {
+                $result = Result::with('subject')
+                    ->where('student_id', $studentId)
+                    ->where('class_id', $classId)
+                    ->where('subject_id', $subjectId)
+                    ->where('term_id', $term->id)
+                    ->where('academic_year_id', $academicYearId)
+                    ->first();
+
+                if ($result) {
+                    $subjectName = $result->subject->name;
+                    $weight = $term->weight ?? 0;
+                    $weightedSubjectGPA += ($result->gpa * $weight);
+                    $weightedSubjectPercentage += ($result->percentage * $weight);
+                    $termWeightSum += $weight;
+                }
+            }
+
+            if ($termWeightSum > 0) {
+                $finalSubjectGPA = round($weightedSubjectGPA / $termWeightSum, 2);
+                $finalSubjectPercentage = round($weightedSubjectPercentage / $termWeightSum, 2);
+                
+                $subjectResults[$subjectId] = [
+                    'subject_id' => $subjectId,
+                    'subject_name' => $subjectName,
+                    'weighted_gpa' => $finalSubjectGPA,
+                    'weighted_percentage' => $finalSubjectPercentage
+                ];
+            }
         }
 
-        // Get results for all terms
-        $termResults = [];
-        $totalWeight = 0;
-        $weightedSum = 0;
+        // Calculate overall weighted averages
+        if (empty($subjectResults)) return null;
 
         foreach ($terms as $term) {
-            // Get average result for this term
-            $results = Result::where('student_id', $studentId)
+            $weight = $term->weight ?? 0;
+            $totalWeight += $weight;
+
+            $termResults = Result::where('student_id', $studentId)
                 ->where('class_id', $classId)
                 ->where('term_id', $term->id)
                 ->where('academic_year_id', $academicYearId)
                 ->get();
 
-            if ($results->isEmpty()) {
-                // If any term is missing, cannot calculate final result
-                return null;
+            if (!$termResults->isEmpty()) {
+                $termAvgGPA = $termResults->avg('gpa');
+                $termAvgPercentage = $termResults->avg('percentage');
+                
+                $overallWeightedGPA += ($termAvgGPA * $weight);
+                $overallWeightedPercentage += ($termAvgPercentage * $weight);
             }
-
-            // Calculate average based on result_type
-            if ($resultSetting->result_type === 'percentage') {
-                $average = $results->avg('percentage');
-            } else {
-                $average = $results->avg('gpa');
-            }
-
-            $weight = $term->weight ?? 0;
-            $totalWeight += $weight;
-            $weightedSum += ($average * $weight);
-
-            $termResults[] = [
-                'term_id' => $term->id,
-                'term_name' => $term->name,
-                'average' => round($average, 2),
-                'weight' => $weight
-            ];
         }
 
-        // Calculate final weighted result
-        $finalResult = $totalWeight > 0 ? round($weightedSum / $totalWeight, 2) : 0;
+        $finalGPA = $totalWeight > 0 ? round($overallWeightedGPA / $totalWeight, 2) : 0;
+        $finalPercentage = $totalWeight > 0 ? round($overallWeightedPercentage / $totalWeight, 2) : 0;
 
         return [
-            'final_result' => $finalResult,
+            'final_result' => ($resultSetting->result_type === 'percentage') ? $finalPercentage : $finalGPA,
+            'final_gpa' => $finalGPA,
+            'final_percentage' => $finalPercentage,
             'result_type' => $resultSetting->result_type,
             'calculation_method' => 'weighted',
-            'term_results' => $termResults,
+            'subject_results' => array_values($subjectResults),
             'total_weight' => $totalWeight
         ];
     }

@@ -940,10 +940,11 @@ class ResultController extends Controller
             'academic_year_id' => 'nullable|exists:academic_years,id',
             'exam_type' => 'nullable|string|max:255',
             'exam_date' => 'nullable|date',
-            'remarks'=>'nullable|string|max:1000',
+            'remarks' => 'nullable|string|max:1000',
 
             'students' => 'required|array',
             'students.*.student_id' => 'required|exists:students,id',
+            'students.*.remarks' => 'nullable|string|max:1000',
             'students.*.results' => 'required|array',
 
             'students.*.results.*.subject_id' => 'required|exists:subjects,id',
@@ -1060,7 +1061,7 @@ class ResultController extends Controller
                         'exam_date' => $validated['exam_date'] ?? null,
                         'gpa' => $calculatedResult['gpa'],
                         'percentage' => $calculatedResult['percentage'],
-                        'remarks' => $validated['remarks'] ?? null,
+                        'remarks' => $studentData['remarks'] ?? $validated['remarks'] ?? null,
                     ]);
 
 
@@ -1391,12 +1392,19 @@ class ResultController extends Controller
             // Calculate
             $data = $calculationService->calculateWeightedFinalResult($studentId, $classId, $resultSetting, $academicYearId);
 
-            if ($data && isset($data['final_result'])) {
-                // Update all results for this student/class/year with the final result
-                Result::where('student_id', $studentId)
-                    ->where('class_id', $classId)
-                    ->where('academic_year_id', $academicYearId)
-                    ->update(['final_result' => $data['final_result']]);
+            if ($data && isset($data['subject_results'])) {
+                foreach ($data['subject_results'] as $subjectResult) {
+                    $finalSubjectValue = ($data['result_type'] === 'percentage') 
+                        ? $subjectResult['weighted_percentage'] 
+                        : $subjectResult['weighted_gpa'];
+
+                    // Update rows for THIS student and THIS SPECIFIC subject
+                    Result::where('student_id', $studentId)
+                        ->where('class_id', $classId)
+                        ->where('subject_id', $subjectResult['subject_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->update(['final_result' => $finalSubjectValue]);
+                }
             }
         } catch (\Exception $e) {
             // Silently fail or log, don't block the main request
@@ -1459,12 +1467,22 @@ class ResultController extends Controller
                 $academicYearId // You might need to get this from request or session
             );
 
-            if ($finalResultData && isset($finalResultData['final_result'])) {
-                 // Update all results for THIS student/class/year with THEIR final result
-                 $updated = Result::where('student_id', $student->id)
-                    ->where('class_id', $classId)
-                    // ->where('academic_year_id', $academicYearId) // Should filter by year if we want to be precise
-                    ->update(['final_result' => $finalResultData['final_result']]);
+            if ($finalResultData && isset($finalResultData['subject_results'])) {
+                $totalUpdated = 0;
+                foreach ($finalResultData['subject_results'] as $subjectResult) {
+                    $finalSubjectValue = ($finalResultData['result_type'] === 'percentage') 
+                        ? $subjectResult['weighted_percentage'] 
+                        : $subjectResult['weighted_gpa'];
+
+                    // Update rows for THIS student and THIS SPECIFIC subject
+                    $updated = Result::where('student_id', $student->id)
+                        ->where('class_id', $classId)
+                        ->where('subject_id', $subjectResult['subject_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->update(['final_result' => $finalSubjectValue]);
+                    
+                    $totalUpdated += $updated;
+                }
                 
                 $successCount++;
                 
@@ -1473,8 +1491,11 @@ class ResultController extends Controller
                     'student_id' => $student->id,
                     'student_name' => $student->first_name . ' ' . $student->last_name,
                     'final_result' => $finalResultData['final_result'],
+                    'final_gpa' => $finalResultData['final_gpa'] ?? null,
+                    'final_percentage' => $finalResultData['final_percentage'] ?? null,
                     'result_type' => $finalResultData['result_type'],
-                    'updated_records' => $updated
+                    'updated_records' => $totalUpdated,
+                    'subject_results' => $finalResultData['subject_results']
                 ];
             } else {
                 $errors[] = [
