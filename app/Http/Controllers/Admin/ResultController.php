@@ -1061,7 +1061,7 @@ class ResultController extends Controller
                         'exam_date' => $validated['exam_date'] ?? null,
                         'gpa' => $calculatedResult['gpa'],
                         'percentage' => $calculatedResult['percentage'],
-                        'remarks' => $studentData['remarks'] ?? $validated['remarks'] ?? null,
+                        'remarks' => $resultData['remarks'] ?? $studentData['remarks'] ?? $validated['remarks'] ?? null,
                     ]);
 
 

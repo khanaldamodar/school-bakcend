@@ -360,8 +360,24 @@ class TeacherController extends Controller
     {
         $teacher = Teacher::findOrFail($id);
 
-        // Set is_deleted to true
-        $teacher->update(['is_deleted' => true]);
+        // Set is_deleted to true for teacher
+        $suffix = '_deleted_' . time();
+        $teacher->update([
+            'is_deleted' => true,
+            'email' => $teacher->email ? $teacher->email . $suffix : null,
+            'phone' => $teacher->phone ? $teacher->phone . $suffix : null,
+        ]);
+
+        // Also soft-delete the associated user if exists
+        if ($teacher->user_id) {
+            $user = User::find($teacher->user_id);
+            if ($user) {
+                $user->update([
+                    'is_deleted' => true,
+                    'email' => $user->email . $suffix,
+                ]);
+            }
+        }
 
         return response()->json([
             'status' => true,

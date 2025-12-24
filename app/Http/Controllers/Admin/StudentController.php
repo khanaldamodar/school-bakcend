@@ -391,7 +391,24 @@ class StudentController extends Controller
         $student = Student::findOrFail($id);
         $classId = $student->class_id; // Store class_id before deletion
         
-        $student->update(['is_deleted' => true]);
+        // Set is_deleted to true for student
+        $suffix = '_deleted_' . time();
+        $student->update([
+            'is_deleted' => true,
+            'email' => $student->email ? $student->email . $suffix : null,
+            'phone' => $student->phone ? $student->phone . $suffix : null,
+        ]);
+
+        // Also soft-delete the associated user if exists
+        if ($student->user_id) {
+            $user = User::find($student->user_id);
+            if ($user) {
+                $user->update([
+                    'is_deleted' => true,
+                    'email' => $user->email . $suffix,
+                ]);
+            }
+        }
 
         // Reassign roll numbers for the class after deletion
         $this->reassignRollNumbers($classId);

@@ -13,6 +13,13 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 
+    protected static function booted()
+    {
+        static::addGlobalScope('not_deleted', function ($builder) {
+            $builder->where('is_deleted', false);
+        });
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -23,7 +30,8 @@ class User extends Authenticatable
         'email',
         'password',
         'phone',
-        'role'
+        'role',
+        'is_deleted'
     ];
 
     /**
