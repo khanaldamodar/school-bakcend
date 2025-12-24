@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Student extends Model
 {
+    protected static function booted()
+    {
+        static::addGlobalScope('not_deleted', function ($builder) {
+            $builder->where('is_deleted', false);
+        });
+    }
+
     protected $fillable = [
         'first_name',
         'middle_name',
@@ -27,6 +34,7 @@ class Student extends Model
         'image',
         'cloudinary_id',
         "roll_number",
+        'is_deleted',
         'ethnicity'
 
     ];

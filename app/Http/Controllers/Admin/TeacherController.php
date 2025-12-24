@@ -360,19 +360,8 @@ class TeacherController extends Controller
     {
         $teacher = Teacher::findOrFail($id);
 
-        // Delete image from Cloudinary
-        if ($teacher->cloudinary_id) {
-            try {
-                $cloudinary = new Cloudinary(env('CLOUDINARY_URL'));
-                $cloudinary->uploadApi()->destroy($teacher->cloudinary_id);
-            } catch (\Exception $e) {
-                // Optionally log the error
-                \Log::error("Cloudinary image deletion failed: " . $e->getMessage());
-            }
-        }
-
-        // Delete teacher record
-        $teacher->delete();
+        // Set is_deleted to true
+        $teacher->update(['is_deleted' => true]);
 
         return response()->json([
             'status' => true,

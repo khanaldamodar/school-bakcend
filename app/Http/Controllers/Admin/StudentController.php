@@ -390,7 +390,8 @@ class StudentController extends Controller
     {
         $student = Student::findOrFail($id);
         $classId = $student->class_id; // Store class_id before deletion
-        $student->delete();
+        
+        $student->update(['is_deleted' => true]);
 
         // Reassign roll numbers for the class after deletion
         $this->reassignRollNumbers($classId);

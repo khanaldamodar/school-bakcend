@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Teacher extends Model
 {
+    protected static function booted()
+    {
+        static::addGlobalScope('not_deleted', function ($builder) {
+            $builder->where('is_deleted', false);
+        });
+    }
+
     protected $fillable = [
         'user_id',
         'name',
@@ -27,7 +34,8 @@ class Teacher extends Model
         'post',
         'dob_bs',
         'joining_data_bs',
-        'joining_date'
+        'joining_date',
+        'is_deleted'
     ];
 
     public function subjects()
