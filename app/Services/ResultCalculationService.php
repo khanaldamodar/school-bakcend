@@ -187,11 +187,17 @@ class ResultCalculationService
         foreach ($subjectIds as $subjectId) {
             $weightedSubjectGPA = 0;
             $weightedSubjectPercentage = 0;
+            $weightedSubjectPractical = 0;
+            $weightedSubjectTheory = 0;
             $termWeightSum = 0;
             $subjectName = '';
+            $subjectFullTheory = 0;
+            $subjectPassTheory = 0;
+            $subjectFullPractical = 0;
+            $subjectPassPractical = 0;
 
             foreach ($terms as $term) {
-                $result = Result::with('subject')
+                $result = Result::with('subject.activities')
                     ->where('student_id', $studentId)
                     ->where('class_id', $classId)
                     ->where('subject_id', $subjectId)
@@ -204,19 +210,37 @@ class ResultCalculationService
                     $weight = $term->weight ?? 0;
                     $weightedSubjectGPA += ($result->gpa * $weight);
                     $weightedSubjectPercentage += ($result->percentage * $weight);
+                    $weightedSubjectPractical += ($result->marks_practical * $weight);
+                    $weightedSubjectTheory += ($result->marks_theory * $weight);
                     $termWeightSum += $weight;
+
+                    // Set subject constants (theory/practical marks)
+                    if ($subjectFullTheory === 0) {
+                        $subjectFullTheory = $result->subject->theory_marks ?? 0;
+                        $subjectPassTheory = $result->subject->theory_pass_marks ?? 0;
+                        $subjectFullPractical = $result->subject->practical_marks ?? 0;
+                        $subjectPassPractical = $result->subject->activities->sum('pass_marks') ?? 0;
+                    }
                 }
             }
 
             if ($termWeightSum > 0) {
                 $finalSubjectGPA = round($weightedSubjectGPA / $termWeightSum, 2);
                 $finalSubjectPercentage = round($weightedSubjectPercentage / $termWeightSum, 2);
+                $finalSubjectPractical = round($weightedSubjectPractical / $termWeightSum, 2);
+                $finalSubjectTheory = round($weightedSubjectTheory / $termWeightSum, 2);
                 
                 $subjectResults[$subjectId] = [
                     'subject_id' => $subjectId,
                     'subject_name' => $subjectName,
                     'weighted_gpa' => $finalSubjectGPA,
-                    'weighted_percentage' => $finalSubjectPercentage
+                    'weighted_percentage' => $finalSubjectPercentage,
+                    'obtained_marks_theory' => $finalSubjectTheory,
+                    'full_marks_theory' => $subjectFullTheory,
+                    'pass_marks_theory' => $subjectPassTheory,
+                    'obtained_marks_practical' => $finalSubjectPractical,
+                    'full_marks_practical' => $subjectFullPractical,
+                    'pass_marks_practical' => $subjectPassPractical,
                 ];
             }
         }
