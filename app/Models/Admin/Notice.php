@@ -11,5 +11,6 @@ class Notice extends Model
         'description',
         'notice_date',
         'image',
+        'cloudinary_id',
     ];
 }

@@ -42,13 +42,20 @@ class NoticeController extends Controller
             'image' => 'nullable|image|max:2048', // Max 2MB
         ]);
 
+        if ($request->hasFile('image')) {
+            $imageData = \App\Helpers\ImageUploadHelper::uploadToCloud($request->file('image'), $domain . '/notices');
+            if ($imageData) {
+                $validatedData['image'] = $imageData['url'];
+                $validatedData['cloudinary_id'] = $imageData['public_id'];
+            }
+        }
+
         $notice = Notice::create($validatedData);
         return response()->json([
             'status' => true,
             'message' => 'Notice created successfully',
             'data' => $notice
         ], 201);
-
     }
 
     /**
@@ -91,6 +98,19 @@ class NoticeController extends Controller
             'image' => 'sometimes|nullable|image|max:2048', // Max 2MB
         ]);
 
+        if ($request->hasFile('image')) {
+            $imageData = \App\Helpers\ImageUploadHelper::uploadToCloud(
+                $request->file('image'), 
+                $domain . '/notices', 
+                $notice->cloudinary_id
+            );
+            
+            if ($imageData) {
+                $validatedData['image'] = $imageData['url'];
+                $validatedData['cloudinary_id'] = $imageData['public_id'];
+            }
+        }
+
         $notice->update($validatedData);
         return response()->json([
             'status' => true,
@@ -110,6 +130,16 @@ class NoticeController extends Controller
                 'status' => false,
                 'message' => 'Notice not found'
             ], 404);
+        }
+
+        // Delete image from Cloudinary if exists
+        if ($notice->cloudinary_id) {
+            try {
+                $cloudinary = new \Cloudinary\Cloudinary(env('CLOUDINARY_URL'));
+                $cloudinary->uploadApi()->destroy($notice->cloudinary_id);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Cloudinary delete failed: ' . $e->getMessage());
+            }
         }
 
         $notice->delete();
