@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Admin\AnalyticalReportController;
+use App\Http\Controllers\SuperAdmin\TenantController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClubController;
 use App\Http\Controllers\Admin\CreateUserController;
@@ -29,8 +30,10 @@ use App\Http\Controllers\Government\IndividualSchoolStudents;
 use App\Http\Controllers\Government\IndividualSchoolTeachers;
 use App\Http\Controllers\Government\SchoolController;
 use App\Http\Controllers\SuperAdmin\CentralController;
-use App\Http\Controllers\SuperAdmin\TenantController;
 use App\Http\Controllers\SuperAdmin\SystemLogController;
+use App\Http\Controllers\SuperAdmin\SmsController as SuperAdminSmsController;
+use App\Http\Controllers\SuperAdmin\SchoolDataController;
+use App\Http\Controllers\SuperAdmin\LocalBodiesController;
 use Illuminate\Support\Facades\Route;
 
 //? Super Admin routes 
@@ -38,6 +41,10 @@ Route::post('/superadmin/register', [CentralController::class, 'register']);
 Route::post('/superadmin/login', [CentralController::class, 'login']);
 Route::post('/superadmin/logout', [CentralController::class, 'logout'])->middleware('auth:sanctum');
 Route::get('/superadmin/users', [CentralController::class, 'viewusers'])->middleware('auth:sanctum');
+
+// Super Admin Stats
+Route::get('/superadmin/stats', [SchoolDataController::class, 'getStats'])->middleware('auth:sanctum');
+
 //? Get all the school Informations
 Route::prefix('superadmin/school')->middleware(['auth:sanctum'])->group(function () {
     Route::get('/', [TenantController::class, 'index']);       // List all schools
@@ -46,6 +53,14 @@ Route::prefix('superadmin/school')->middleware(['auth:sanctum'])->group(function
     Route::put('/{tenant}', [TenantController::class, 'update']); // Update school
     Route::patch('/{tenant}', [TenantController::class, 'update']); // Partial update
     Route::delete('/{tenant}', [TenantController::class, 'destroy']); // Delete school
+    
+    // SMS Balance routes
+    Route::get('/{tenant}/sms-balance', [SuperAdminSmsController::class, 'getBalance']);
+    Route::post('/{tenant}/add-sms', [SuperAdminSmsController::class, 'addBalance']);
+    
+    // School Data routes (Deleted records)
+    Route::get('/{tenant}/deleted-students', [SchoolDataController::class, 'getDeletedStudents']);
+    Route::get('/{tenant}/deleted-teachers', [SchoolDataController::class, 'getDeletedTeachers']);
 });
 
 //? System Logs for Super Admin
@@ -53,6 +68,17 @@ Route::prefix('superadmin/logs')->middleware(['auth:sanctum'])->group(function (
     Route::get('/', [SystemLogController::class, 'index']);
     Route::get('/{id}', [SystemLogController::class, 'show']);
 });
+
+//? Local Bodies for Super Admin
+Route::prefix('superadmin/local-bodies')->middleware(['auth:sanctum'])->group(function () {
+    Route::get('/', function() {
+        return response()->json([
+            'status' => true,
+            'data' => \App\Models\LocalBody::all()
+        ]);
+    });
+});
+
 
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'])->group(function () {

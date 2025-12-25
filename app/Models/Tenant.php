@@ -24,7 +24,10 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'ward',
             'password',
             'database',
-            'domain'
+            'domain',
+            'latitude',
+            'longitude',
+            'sms_balance'
         ];
     }
 

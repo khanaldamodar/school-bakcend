@@ -133,6 +133,8 @@ class TenantController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|max:255|unique:tenants,email,' . $tenant->id,
             'password' => ['nullable', 'confirmed', Password::defaults()],
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
         ]);
 
         if (isset($validated['name'])) {
@@ -145,6 +147,14 @@ class TenantController extends Controller
 
         if (!empty($validated['password'])) {
             $tenant->password = bcrypt($validated['password']);
+        }
+
+        if (array_key_exists('latitude', $validated)) {
+            $tenant->latitude = $validated['latitude'];
+        }
+        
+        if (array_key_exists('longitude', $validated)) {
+            $tenant->longitude = $validated['longitude'];
         }
 
         $tenant->save();
