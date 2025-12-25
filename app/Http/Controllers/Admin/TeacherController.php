@@ -93,10 +93,7 @@ class TeacherController extends Controller
             'subject_ids.*' => 'exists:subjects,id',
             'class_teacher_of' => 'nullable|exists:classes,id',
             'ethnicity' => 'nullable|string',
-            'post' => [
-                'required',
-                Rule::in(['आधारभूत तह', 'निम्न माध्यमिक तह', 'माध्यमिक तह']),
-            ],
+            'post' => 'nullable|string',
             'dob_bs' => 'string|nullable',
             'joining_data_bs' => 'string|nullable',
             'joining_date' => 'nullable',
@@ -251,10 +248,7 @@ class TeacherController extends Controller
             'subject_ids.*' => 'exists:subjects,id',
             'class_teacher_of' => 'nullable|exists:classes,id',
             'ethnicity' => 'sometimes|string',
-            'post' => [
-                'sometimes',
-                Rule::in(['आधारभूत तह', 'निम्न माध्यमिक तह', 'माध्यमिक तह']),
-            ],
+            'post' => 'string|nullable',
             'dob_bs' => 'string|nullable',
             'joining_data_bs' => 'string|nullable',
             'joining_date' => 'nullable',
