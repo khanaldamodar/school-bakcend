@@ -342,5 +342,8 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
     // Get all the Teachers of thee Nagarpalica
     Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
+    
+    Route::post('/gov/analytics/ethnicity', [AnalyticsController::class, 'ethnicity']);
+    Route::post('/gov/analytics/comprehensive', [AnalyticsController::class, 'comprehensive']);
 
 });

@@ -8,6 +8,8 @@ use App\Models\Admin\Teacher;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
+
 class AnalyticsController extends Controller
 {
     // ? To filter the students
@@ -181,78 +183,260 @@ class AnalyticsController extends Controller
         $school2Std = Student::count();
         dd($school1Std, $school2Std);
     }
+
     public function filter(Request $request)
-{
-    $request->validate([
-        "mode" => "required|in:single,multiple",
-        "schools" => "required|array|min:1",
-        "type" => "required|in:students,teachers",
+    {
+        $request->validate([
+            "mode" => "required|in:single,multiple",
+            "schools" => "required|array|min:1",
+            "type" => "required|in:students,teachers",
 
-        "gender" => "nullable",
-        "is_tribe" => "nullable",
-        "blood_group" => "nullable",
-        "is_disabled" => "nullable",
-        "qualification" => "nullable"
-    ]);
+            "gender" => "nullable",
+            "is_tribe" => "nullable", // Kept for backward compat in validation but ignored in logic if needed
+            "blood_group" => "nullable",
+            "is_disabled" => "nullable",
+            "qualification" => "nullable",
+            "ethnicity" => "nullable"
+        ]);
 
-    $results = [];
+        // Generate Cache Key based on request parameters
+        $cacheKey = 'gov_analytics_filter_' . md5(json_encode($request->all()));
+        
+        // Return cached result if available (Cache for 10 minutes)
+        return Cache::remember($cacheKey, 600, function () use ($request) {
+            $results = [];
 
-    foreach ($request->schools as $schoolDb) {
+            foreach ($request->schools as $schoolDb) {
 
-        $tenant = Tenant::findOrFail($schoolDb);
-        tenancy()->initialize($tenant);  // Switch tenant DB
+                try {
+                    $tenant = Tenant::findOrFail($schoolDb);
+                    tenancy()->initialize($tenant); 
+                } catch (\Exception $e) {
+                    continue;
+                }
 
-        // Choose which model to use
-        $query = $request->type === "students"
-            ? Student::query()
-            : Teacher::query();
+                $query = $request->type === "students"
+                    ? Student::query()
+                    : Teacher::query();
 
-        // Apply filters dynamically
-        if ($request->filled("is_tribe")) {
-            $query->where("is_tribe", $request->is_tribe);
-        }
+                // Apply filters dynamically
+                if ($request->filled("gender")) {
+                    $query->where("gender", $request->gender);
+                }
 
-        if ($request->filled("gender")) {
-            $query->where("gender", $request->gender);
-        }
+                if ($request->filled("blood_group") && $request->type === "students") {
+                    $bg = str_replace(" ", "+", $request->blood_group);
+                    $query->where("blood_group", $bg);
+                }
 
-        if ($request->filled("blood_group") && $request->type === "students") {
-            $bg = str_replace(" ", "+", $request->blood_group);
-            $query->where("blood_group", $bg);
-        }
+                if ($request->filled("qualification") && $request->type === "teachers") {
+                    $query->where("qualification", "like", "%" . $request->qualification . "%");
+                }
 
-        if ($request->filled("qualification") && $request->type === "teachers") {
-            $query->where("qualification", "like", "%" . $request->qualification . "%");
-        }
+                if ($request->filled("is_disabled")) {
+                    $query->where("is_disabled", $request->is_disabled);
+                }
 
-        if ($request->filled("is_disabled")) {
-            $query->where("is_disabled", $request->is_disabled);
-        }
+                 if ($request->filled("ethnicity")) {
+                    $query->where("ethnicity", $request->ethnicity);
+                }
 
-        // Get filtered dataset
-        $data = $query->get();
+                // Optimization: aggregation instead of get() -> count()
+                $stats = $query->selectRaw('
+                    count(*) as total,
+                    sum(case when gender = "male" then 1 else 0 end) as male,
+                    sum(case when gender = "female" then 1 else 0 end) as female,
+                    sum(case when gender = "other" or gender = "others" then 1 else 0 end) as other,
+                    sum(case when is_disabled = 1 then 1 else 0 end) as disabled
+                ')->first();
 
-        // Gender-based count (from final filtered data)
-        $maleCount = $data->where("gender", "male")->count();
-        $femaleCount = $data->where("gender", "female")->count();
-        $otherCount = $data->where("gender", "other")->count();
+                // Tribe removed as per user request (use ethnicity instead)
+                
+                $results[] = [
+                    "school_id" => $schoolDb,
+                    "total" => $stats->total,
+                    "male" => $stats->male,
+                    "female" => $stats->female,
+                    "other" => $stats->other,
+                    "tribe" => 0, // Zeroed out as we are moving to ethnicity
+                    "disabled" => $stats->disabled
+                ];
+            }
 
-        // Push final response
-        $results[] = [
-            "school_id" => $schoolDb,
-            "total" => $data->count(),
-            "male" => $maleCount,
-            "female" => $femaleCount,
-            "other" => $otherCount,
-        ];
+            return response()->json([
+                "mode" => $request->mode,
+                "type" => $request->type,
+                "result" => $results
+            ]);
+        });
     }
 
-    return response()->json([
-        "mode" => $request->mode,
-        "type" => $request->type,
-        "result" => $results
-    ]);
-}
+    public function ethnicity(Request $request) {
+        $request->validate([
+            "schools" => "required|array|min:1",
+            "type" => "required|in:students,teachers",
+        ]);
+
+        $cacheKey = 'gov_analytics_ethnicity_' . md5(json_encode($request->all()));
+
+        return Cache::remember($cacheKey, 600, function () use ($request) {
+            $results = [];
+
+            foreach ($request->schools as $schoolDb) {
+                try {
+                    $tenant = Tenant::findOrFail($schoolDb);
+                    tenancy()->initialize($tenant);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                $query = $request->type === "students" ? Student::query() : Teacher::query();
+
+                // Group by ethnicity
+                $ethnicityStats = $query->selectRaw('ethnicity, count(*) as count')
+                    ->whereNotNull('ethnicity')
+                    ->groupBy('ethnicity')
+                    ->get();
+                
+                $formattedStats = [];
+                foreach($ethnicityStats as $stat) {
+                    if (!empty($stat->ethnicity)) {
+                        $formattedStats[$stat->ethnicity] = $stat->count;
+                    }
+                }
+
+                $results[] = [
+                    "school_id" => $schoolDb,
+                    "stats" => $formattedStats
+                ];
+            }
+            
+            return response()->json([
+                "status" => true,
+                "data" => $results
+            ]);
+        });
+    }
+
+    public function comprehensive(Request $request) {
+        $request->validate([
+            "schools" => "required|array|min:1",
+            "type" => "required|in:students,teachers",
+        ]);
+
+        $cacheKey = 'gov_analytics_comprehensive_' . md5(json_encode($request->all()));
+
+        return Cache::remember($cacheKey, 600, function () use ($request) {
+            $results = [];
+
+            foreach ($request->schools as $schoolDb) {
+                try {
+                    $tenant = Tenant::findOrFail($schoolDb);
+                    tenancy()->initialize($tenant);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                // 1. General Stats (Gender, Disabled) for STUDENTS
+                // We use conditional aggregation for students
+                $studentQuery = Student::query();
+                $stats = $studentQuery->selectRaw('
+                    count(*) as total,
+                    sum(case when gender = "male" then 1 else 0 end) as male,
+                    sum(case when gender = "female" then 1 else 0 end) as female,
+                    sum(case when gender = "other" or gender = "others" then 1 else 0 end) as other,
+                    sum(case when is_disabled = 1 then 1 else 0 end) as disabled
+                ')->first();
+
+                // 2. Student Ethnicity Stats
+                $studentEthnicity = Student::query()
+                    ->selectRaw('ethnicity, count(*) as count')
+                    ->whereNotNull('ethnicity')
+                    ->groupBy('ethnicity')
+                    ->get()
+                    ->mapWithKeys(function ($item) {
+                        return [$item->ethnicity => $item->count];
+                    });
+
+                // 3. Teacher Stats (Gender, Ethnicity)
+                $teacherQuery = Teacher::query();
+                $teacherStats = $teacherQuery->selectRaw('
+                    count(*) as total,
+                    sum(case when gender = "male" then 1 else 0 end) as male,
+                    sum(case when gender = "female" then 1 else 0 end) as female,
+                    sum(case when gender = "other" or gender = "others" then 1 else 0 end) as other
+                ')->first();
+
+                $teacherEthnicity = Teacher::query()
+                    ->selectRaw('ethnicity, count(*) as count')
+                    ->whereNotNull('ethnicity')
+                    ->groupBy('ethnicity')
+                    ->get()
+                    ->mapWithKeys(function ($item) {
+                        return [$item->ethnicity => $item->count];
+                    });
+
+                // 4. Optional: Detailed Lists (Names)
+                $studentsList = [];
+                $teachersList = [];
+
+                if ($request->has('include_names') && $request->include_names) {
+                    $studentsList = Student::select('first_name', 'last_name', 'gender', 'roll_number', 'class_id')->limit(1000)->get()->map(function($s) {
+                        return [
+                            'name' => $s->first_name . ' ' . $s->last_name,
+                            'gender' => $s->gender,
+                            'roll' => $s->roll_number,
+                            'class' => $s->class_id
+                        ];
+                    });
+                     
+                    $teachersList = Teacher::select('name', 'gender', 'email', 'phone')->limit(200)->get()->map(function($t) {
+                        return [
+                            'name' => $t->name,
+                            'gender' => $t->gender,
+                            'email' => $t->email,
+                            'phone' => $t->phone
+                        ];
+                    });
+                }
+
+                $results[] = [
+                    "school_id" => $schoolDb,
+                    "general" => [ // Student General
+                        "total" => $stats->total,
+                        "male" => $stats->male,
+                        "female" => $stats->female,
+                        "other" => $stats->other,
+                        "disabled" => $stats->disabled,
+                        "tribe" => 0
+                    ],
+                    "ethnicity" => $studentEthnicity,
+                    "academic" => [
+                        "passed" => \App\Models\Admin\Result::where('final_result', 'Pass')->count(),
+                        "failed" => \App\Models\Admin\Result::where('final_result', 'Fail')->count(),
+                        "average_gpa" => \App\Models\Admin\Result::avg('gpa') ?? 0,
+                    ],
+                    "teacher_stats" => [
+                        "total" => $teacherStats->total,
+                        "male" => $teacherStats->male,
+                        "female" => $teacherStats->female,
+                        "other" => $teacherStats->other,
+                        "ethnicity" => $teacherEthnicity
+                    ],
+                    "details" => [
+                        "students" => $studentsList,
+                        "teachers" => $teachersList
+                    ]
+                ];
+            }
+            
+            return response()->json([
+                "status" => true,
+                "data" => $results
+            ]);
+        });
+    }
+
     public function singleSchoolStudentFilter(Request $request)
     {
 
