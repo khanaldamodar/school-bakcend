@@ -8,6 +8,7 @@ class Term extends Model
 {
     protected $fillable = [
         'result_setting_id',
+        'academic_year_id',
         'name',
         'weight',
         'exam_date',
@@ -19,6 +20,11 @@ class Term extends Model
     public function resultSetting()
     {
         return $this->belongsTo(ResultSetting::class, 'result_setting_id');
+    }
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_year_id');
     }
 
 

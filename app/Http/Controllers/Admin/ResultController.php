@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\AcademicYear;
 use App\Models\Admin\ExtraCurricularActivity;
 use App\Models\Admin\Result;
 use App\Models\Admin\ResultActivity;
@@ -12,7 +13,9 @@ use App\Models\Admin\Subject;
 use App\Models\Admin\Teacher;
 use App\Services\ResultCalculationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ResultController extends Controller
 {
@@ -66,15 +69,18 @@ class ResultController extends Controller
     public function store(Request $request, $domain)
     {
         try {
-            $user = $request->user();
+            $user = Auth::user();
             $teacherId = Teacher::where('user_id', $user->id)->value('id');
             
             // Initialize ResultCalculationService
             $calculationService = new ResultCalculationService();
             
+            // Get academic year from request
+            $academicYearId = $request->input('academic_year_id');
+            
             // Validate ResultSetting exists
             try {
-                $resultSetting = $calculationService->getResultSetting();
+                $resultSetting = $calculationService->getResultSetting($academicYearId);
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => false,
@@ -127,9 +133,13 @@ class ResultController extends Controller
             // Use ResultCalculationService for calculation
             $calculatedResult = $calculationService->calculateResult(
                 new Result(),
-                $marks_obtained,
-                $max_marks,
-                $resultSetting
+                (float)$validated['marks_theory'],
+                (float)$max_theory,
+                (float)$validated['marks_practical'],
+                (float)$max_practical,
+                $resultSetting,
+                (float)($subject->theory_pass_marks ?? 0),
+                (float)($subject->practical_pass_marks ?? 0)
             );
 
             $result = Result::create([
@@ -276,9 +286,13 @@ class ResultController extends Controller
             // Use ResultCalculationService for recalculation
             $calculatedResult = $calculationService->calculateResult(
                 $result,
-                $marks_obtained,
-                $max_marks,
-                $resultSetting
+                (float)$result->marks_theory,
+                (float)$max_theory,
+                (float)$result->marks_practical + $activityMarks,
+                (float)$max_practical + $activityMax,
+                $resultSetting,
+                (float)($subject->theory_pass_marks ?? 0),
+                (float)($subject->practical_pass_marks ?? 0)
             );
             
             $result->gpa = $calculatedResult['gpa'];
@@ -428,8 +442,6 @@ class ResultController extends Controller
         // get the logged in user
         $user = auth()->user();
 
-
-
         try {
             // find student based on user_id
             $student = Student::with('class:id,name')
@@ -443,9 +455,12 @@ class ResultController extends Controller
             ], 404);
         }
 
+        // Initialize calculation service
+        $calculationService = new ResultCalculationService();
+
         // fetch all results including past classes
         $results = Result::with([
-            'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
+            'subject:id,name,theory_marks,practical_marks,theory_pass_marks,practical_pass_marks',
             'activities.activity:id,activity_name,full_marks',
             'academicYear'
         ])
@@ -454,7 +469,7 @@ class ResultController extends Controller
             ->groupBy(['academic_year_id', 'class_id', 'exam_type']); 
 
         $formattedResults = [];
-        $overallGPA = []; // store overall GPA per academic year, class & exam type
+        $overallMetrics = []; // store overall metrics per exam
 
         foreach ($results as $academicYearId => $classes) {
             $academicYear = AcademicYear::find($academicYearId);
@@ -465,33 +480,43 @@ class ResultController extends Controller
                 $key = "{$academicYearName} - {$className}";
 
                 foreach ($exams as $examType => $subjects) {
+                    $totalObtained = 0;
+                    $totalMax = 0;
+
                     // Format individual subjects
-                    $formattedResults[$key][$examType] = $subjects->map(function ($result) {
-                        $activityMarks = $result->activities->sum('marks');
-                        $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+                    $formattedResults[$key][$examType] = $subjects->map(function ($result) use (&$totalObtained, &$totalMax) {
+                        $theoryFull = (float)($result->subject->theory_marks ?? 0);
+                        $practicalFull = (float)($result->subject->practical_marks ?? 0);
+                        $theoryObtained = (float)$result->marks_theory;
+                        $practicalObtained = (float)$result->marks_practical;
+                        
+                        $totalObtained += ($theoryObtained + $practicalObtained);
+                        $totalMax += ($theoryFull + $practicalFull);
 
                         return [
                             'subject_name' => $result->subject->name,
-                            'marks_theory' => $result->marks_theory,
-                            'max_theory' => $result->subject->theory_marks,
-                            'marks_practical' => $result->marks_practical,
-                            'max_practical' => $result->subject->practical_marks,
-                            'activity_marks' => $activityMarks,
-                            'activity_max_marks' => $activityMaxMarks,
-                            'total_obtained' => $result->marks_theory + $result->marks_practical + $activityMarks,
-                            'total_max' => ($result->subject->theory_marks ?? 0) + ($result->subject->practical_marks ?? 0) + $activityMaxMarks,
+                            'marks_theory' => $theoryObtained,
+                            'max_theory' => $theoryFull,
+                            'marks_practical' => $practicalObtained,
+                            'max_practical' => $practicalFull,
+                            'total_obtained' => $theoryObtained + $practicalObtained,
+                            'total_max' => $theoryFull + $practicalFull,
                             'gpa' => $result->gpa,
                             'exam_type' => $result->exam_type,
-                            'activities' => $result->activities->map(fn($a) => [
-                                'activity_name' => $a->activity->activity_name,
-                                'marks_obtained' => $a->marks,
-                                'full_marks' => $a->activity->full_marks
-                            ])
+                            'remarks' => $result->remarks,
                         ];
                     });
 
-                    // Calculate average GPA for this exam type
-                    $overallGPA[$key][$examType] = number_format($subjects->avg('gpa'), 2);
+                    // Calculate overall metrics for this exam
+                    $percentage = $totalMax > 0 ? round(($totalObtained / $totalMax) * 100, 2) : 0;
+                    $gpa = $subjects->avg('gpa');
+                    
+                    $overallMetrics[$key][$examType] = [
+                        'gpa' => number_format($gpa, 2),
+                        'percentage' => $percentage,
+                        'grade' => $calculationService->getGradeFromPercentage($percentage),
+                        'division' => $calculationService->getDivisionFromPercentage($percentage),
+                    ];
                 }
             }
         }
@@ -506,7 +531,7 @@ class ResultController extends Controller
                     'roll_number' => $student->roll_number,
                 ],
                 'results' => $formattedResults,
-                'overall_gpa' => $overallGPA, // GPA per class + exam type
+                'overall_metrics' => $overallMetrics,
             ]
         ]);
     }
@@ -718,6 +743,7 @@ class ResultController extends Controller
             }
 
             $percentage = $maxMarks > 0 ? round(($totalMarks / $maxMarks) * 100, 2) : 0;
+            $gpa = $calculationService->calculateGPA($totalMarks, $maxMarks);
 
             $ledger[] = [
                 'student_id' => $student->id,
@@ -726,6 +752,9 @@ class ResultController extends Controller
                 'total_marks' => $totalMarks,
                 'max_marks' => $maxMarks,
                 'percentage' => $percentage,
+                'gpa' => $gpa,
+                'grade' => $calculationService->getGradeFromPercentage($percentage),
+                'division' => $calculationService->getDivisionFromPercentage($percentage),
                 'subjects' => $subjectsData,
             ];
         }
@@ -886,20 +915,31 @@ class ResultController extends Controller
 
             $max_theory = $subject->theory_marks ?? 0;
             $max_practical = $subject->practical_marks ?? 0;
-            $marks_obtained = $data['marks_theory'] + $data['marks_practical'];
-            $max_marks = $max_theory + $max_practical;
-            $gpa = $max_marks > 0 ? round(($marks_obtained / $max_marks) * 4, 2) : 0;
+            
+            // Use ResultCalculationService for calculation
+            $calculatedResult = $calculationService->calculateResult(
+                new Result(),
+                (float)$data['marks_theory'],
+                (float)$max_theory,
+                (float)$data['marks_practical'],
+                (float)$max_practical,
+                // Pass null for result setting to use simple calculation if no setting exists
+                null, 
+                (float)($subject->theory_pass_marks ?? 0),
+                (float)($subject->practical_pass_marks ?? 0)
+            );
 
             $resultsData[] = [
                 'student_id' => $data['student_id'],
                 'class_id' => $validated['class_id'],
                 'subject_id' => $data['subject_id'],
                 'teacher_id' => $user->id ?? null,
-                'term_id' => null, // bulk store often used for legacy, might not have terms
+                'term_id' => null, 
                 'academic_year_id' => $academicYearId,
                 'marks_theory' => $data['marks_theory'],
                 'marks_practical' => $data['marks_practical'],
-                'gpa' => $gpa,
+                'gpa' => $calculatedResult['gpa'],
+                'percentage' => $calculatedResult['percentage'],
                 'exam_type' => $validated['exam_type'],
                 'exam_date' => $validated['exam_date'],
                 'created_at' => now(),
@@ -1014,37 +1054,23 @@ class ResultController extends Controller
                     // SUBJECT MARKS
                     $subject = Subject::findOrFail($resultData['subject_id']);
 
-                    $maxMarks = ($subject->theory_marks ?? 0) + ($subject->practical_marks ?? 0);
-                    $obtained = $resultData['marks_theory'] + $resultData['marks_practical'];
-
-                    $activityMarks = 0;
-                    $activityMax = 0;
-
-                    // Calculate activity marks if provided
-                    if (!empty($resultData['activities'])) {
-                        foreach ($resultData['activities'] as $activityData) {
-                            $activity = ExtraCurricularActivity::where('id', $activityData['activity_id'])
-                                ->where(function ($q) use ($validated) {
-                                    $q->where('class_id', $validated['class_id'])
-                                        ->orWhereNull('class_id');
-                                })
-                                ->firstOrFail();
-
-                            $activityMarks += $activityData['marks'];
-                            $activityMax += $activity->full_marks ?? 0;
-                        }
-                    }
-
-                    // Calculate total
-                    $total = $obtained + $activityMarks;
-                    $totalMax = $maxMarks + $activityMax;
+                    $theoryObtained = (float)$resultData['marks_theory'];
+                    $theoryMax = (float)($subject->theory_marks ?? 0);
+                    
+                    // Practical marks (includes activities if summed by frontend)
+                    $practicalObtained = (float)$resultData['marks_practical'];
+                    $practicalMax = (float)($subject->practical_marks ?? 0);
 
                     // Use ResultCalculationService for calculation
                     $calculatedResult = $calculationService->calculateResult(
                         new Result(),
-                        $total,
-                        $totalMax,
-                        $resultSetting
+                        $theoryObtained,
+                        $theoryMax,
+                        $practicalObtained,
+                        $practicalMax,
+                        $resultSetting,
+                        (float)($subject->theory_pass_marks ?? 0),
+                        (float)($subject->practical_pass_marks ?? 0)
                     );
 
                     // CREATE RESULT
@@ -1251,46 +1277,56 @@ class ResultController extends Controller
         });
 
         // Group results by student
-        $grouped = $results->groupBy('student_id')->map(function ($studentResults, $studentId) use ($ranksByExam) {
+        $calculationService = new ResultCalculationService();
+
+        $grouped = $results->groupBy('student_id')->map(function ($studentResults, $studentId) use ($ranksByExam, $calculationService) {
 
             $student = $studentResults->first()->student;
+            $studentTotalMarks = 0;
+            $studentMaxMarks = 0;
 
-            $subjects = $studentResults->map(function ($result) {
+            $subjects = $studentResults->map(function ($result) use (&$studentTotalMarks, &$studentMaxMarks) {
 
                 $activityMarks = $result->activities->sum('marks');
-                $activityMaxMarks = $result->activities->sum(fn($a) => $a->activity->full_marks ?? 0);
+                
+                $theoryFull = (float)($result->subject->theory_marks ?? 0);
+                $practicalFull = (float)($result->subject->practical_marks ?? 0);
+                $totalObtained = (float)($result->marks_theory + $result->marks_practical);
+                $totalFull = $theoryFull + $practicalFull;
+
+                $studentTotalMarks += $totalObtained;
+                $studentMaxMarks += $totalFull;
 
                 return [
                     'result_id' => $result->id,
                     'subject' => $result->subject->name,
-                    'theory_pass_marks' => $result->subject->theory_pass_marks,
-                    'practical_pass_marks' => $result->activities->sum(fn($a) => $a->activity->pass_marks ?? 0),
-                    'obtained_marks_theory' => $result->marks_theory,
-                    'obtained_marks_practical' => $result->marks_practical,
-                    'obtained_activity_marks' => $activityMarks,
-                    'remarks' => $result->remarks,
-                    'obtained_total_marks' => $result->marks_theory + $result->marks_practical,  // + $activityMarks, 
-                    'full_marks_theory' =>
-                        ($result->subject->theory_marks ?? 0),
-                    'full_marks_practical' => ($result->subject->practical_marks ?? 0),
-                    'gpa' => $result->gpa,
+                    'theory_full_mark' => $theoryFull,
+                    'theory_pass_mark' => (float)($result->subject->theory_pass_marks ?? 0),
+                    'practical_full_mark' => $practicalFull,
+                    'practical_pass_mark' => (float)($result->subject->practical_pass_marks ?? 0),
+                    'obtained_marks_theory' => (float)$result->marks_theory,
+                    'obtained_marks_practical' => (float)$result->marks_practical,
+                    'obtained_total_marks' => $totalObtained,
                     'gpa' => $result->gpa,
                     'percentage' => $result->percentage,
-                    'final_result' => $result->final_result,
                     'exam_date' => $result->exam_date,
-                    'activities' => $result->activities->map(fn($a) => [
-                        'activity_name' => $a->activity->activity_name,
-                        'marks_obtained' => $a->marks,
-                        'full_marks' => $a->activity->full_marks,
-                        'pass_marks' => $a->activity->pass_marks
-                    ])
+                    'remarks' => $result->remarks,
                 ];
             });
+
+            $percentage = $studentMaxMarks > 0 ? round(($studentTotalMarks / $studentMaxMarks) * 100, 2) : 0;
+            $gpa = $calculationService->calculateGPA($studentTotalMarks, $studentMaxMarks);
 
             return [
                 'student_id' => $student->id,
                 'student_name' => $student->first_name . ' ' . $student->last_name,
                 'roll_no' => $student->roll_number,
+                'total_marks' => $studentTotalMarks,
+                'max_marks' => $studentMaxMarks,
+                'percentage' => $percentage,
+                'gpa' => $gpa,
+                'grade' => $calculationService->getGradeFromPercentage($percentage),
+                'division' => $calculationService->getDivisionFromPercentage($percentage),
                 'subjects' => $subjects,
                 'ranks' => $studentResults->pluck('exam_type')->unique()->map(function ($examType) use ($ranksByExam, $studentId) {
                     return [
@@ -1384,7 +1420,7 @@ class ResultController extends Controller
             $calculationService = new ResultCalculationService();
             if (!$calculationService->validateResultSetting()) return;
             
-            $resultSetting = $calculationService->getResultSetting();
+            $resultSetting = $calculationService->getResultSetting($academicYearId);
             
             // Only proceed if weighted
             if ($resultSetting->calculation_method !== 'weighted') return;

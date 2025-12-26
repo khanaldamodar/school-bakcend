@@ -13,9 +13,27 @@ class ResultSettingController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index($domain)
+    public function index(Request $request, $domain)
     {
-        $setting = ResultSetting::with('terms')->get();
+        $academicYearId = $request->query('academic_year_id');
+        
+        $query = ResultSetting::with('terms');
+        
+        if ($academicYearId) {
+            $query->where('academic_year_id', $academicYearId);
+        } else {
+            // Default to current academic year
+            $query->whereHas('academicYear', function($q) {
+                $q->where('is_current', true);
+            });
+        }
+        
+        $setting = $query->first();
+
+        // If no setting for current year, just get any existing one as fallback
+        if (!$setting && !$academicYearId) {
+            $setting = ResultSetting::with('terms')->latest()->first();
+        }
 
         if (!$setting) {
             return response()->json([
@@ -38,6 +56,7 @@ class ResultSettingController extends Controller
     {
         $validated = $request->validate([
             'setting_id' => 'required|exists:settings,id',
+            'academic_year_id' => 'required|exists:academic_years,id',
             'total_terms' => 'required|integer|min:1|max:12',
             'calculation_method' => 'required|in:simple,weighted',
             'result_type' => 'required|in:gpa,percentage',
@@ -52,11 +71,13 @@ class ResultSettingController extends Controller
             'terms.*.end_date' => 'nullable|date',
         ]);
 
-        // Prevent duplicate record for same setting
-        if (ResultSetting::where('setting_id', $validated['setting_id'])->exists()) {
+        // Prevent duplicate record for same setting and academic year
+        if (ResultSetting::where('setting_id', $validated['setting_id'])
+            ->where('academic_year_id', $validated['academic_year_id'])
+            ->exists()) {
             return response()->json([
                 'status' => false,
-                'message' => 'Result setting already exists for this school'
+                'message' => 'Result setting already exists for this school and academic year'
             ], 409);
         }
 
@@ -69,6 +90,8 @@ class ResultSettingController extends Controller
         if (!empty($validated['terms'])) {
 
             foreach ($validated['terms'] as $termData) {
+                // Ensure academic_year_id is set for the term
+                $termData['academic_year_id'] = $setting->academic_year_id;
 
                 // Create term
                 $term = $setting->terms()->create($termData);
@@ -84,10 +107,6 @@ class ResultSettingController extends Controller
             }
         }
 
-        // Create terms for this ResultSetting
-        if (!empty($validated['terms'])) {
-            $setting->terms()->createMany($validated['terms']);
-        }
 
         TenantLogger::logCreate('result_settings', "Result setting created", [
             'id' => $setting->id,
@@ -118,6 +137,7 @@ class ResultSettingController extends Controller
         $resultSetting = ResultSetting::findOrFail($id);
 
         $validated = $request->validate([
+            'academic_year_id' => 'sometimes|exists:academic_years,id',
             'total_terms' => 'sometimes|integer|min:1|max:12',
             'calculation_method' => 'sometimes|in:simple,weighted',
             'result_type' => 'sometimes|in:gpa,percentage',
@@ -166,6 +186,7 @@ class ResultSettingController extends Controller
                     }
                 } else {
                     // Create new term
+                    $termData['academic_year_id'] = $resultSetting->academic_year_id;
                     $newTerm = $resultSetting->terms()->create($termData);
                     $termIdsFromRequest[] = $newTerm->id;
                 }

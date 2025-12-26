@@ -16,8 +16,8 @@ class Subject extends Model
         'practical_marks',
         'teacher_id',
         'class_id',
-        'theory_pass_marks'
-
+        'theory_pass_marks',
+        'practical_pass_marks'
     ];
 
     public function teacher()

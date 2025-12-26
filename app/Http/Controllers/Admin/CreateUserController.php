@@ -83,9 +83,10 @@ class CreateUserController extends Controller
    
     public function login(Request $request, $domain)
     {
-        // Validate login input
+        // Validate login input - accept either email or student_id
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'email' => 'nullable|string',
+            'student_id' => 'nullable|string',
             'password' => 'required|string',
         ]);
 
@@ -98,21 +99,82 @@ class CreateUserController extends Controller
         }
 
         $credentials = $validator->validated();
-
-        // Find user in tenant DB
-        $user = User::where('email', $credentials['email'])->first();
-
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        
+        // Ensure at least one identifier is provided
+        if (empty($credentials['email']) && empty($credentials['student_id'])) {
             return response()->json([
                 'status' => false,
-                'message' => 'Invalid email or password',
-            ], 401);
+                'message' => 'Please provide either email or student ID',
+            ], 422);
+        }
+
+        $user = null;
+        $isStudentLogin = false;
+
+        // Check if logging in with student_id
+        if (!empty($credentials['student_id'])) {
+            $isStudentLogin = true;
+            
+            // Find student by student_id
+            $student = \App\Models\Admin\Student::where('student_id', $credentials['student_id'])->first();
+            
+            if (!$student) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Invalid student ID or password',
+                ], 401);
+            }
+            
+            // For students, password should match student_id
+            if ($credentials['password'] !== $student->student_id) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Invalid student ID or password',
+                ], 401);
+            }
+            
+            // Find or create user account for this student
+            if ($student->user_id) {
+                $user = User::find($student->user_id);
+            }
+            
+            
+            // If no user exists, create one
+            if (!$user) {
+                // Ensure we always have a valid email (never null)
+                $userEmail = $student->email;
+                if (empty($userEmail)) {
+                    $userEmail = $student->student_id . '@student.local';
+                }
+                
+                $user = User::create([
+                    'name' => trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? '')),
+                    'email' => $userEmail,
+                    'password' => Hash::make($student->student_id), // Password is student_id
+                    'phone' => $student->phone,
+                    'role' => 'student'
+                ]);
+                
+                // Link user to student
+                $student->user_id = $user->id;
+                $student->save();
+            }
+        } else {
+            // Email-based login (for admin, teacher, parent)
+            $user = User::where('email', $credentials['email'])->first();
+
+            if (!$user || !Hash::check($credentials['password'], $user->password)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Invalid email or password',
+                ], 401);
+            }
         }
 
         // Clear login attempts on successful login
-        LoginAttempt::clearAttempts($credentials['email']);
+        LoginAttempt::clearAttempts($credentials['email'] ?? $credentials['student_id']);
 
-        // Optionally generate a token (if using Laravel Sanctum / Passport)
+        // Generate token
         $token = $user->createToken('tenant-api-token')->plainTextToken;
 
         // Record login history
@@ -124,7 +186,8 @@ class CreateUserController extends Controller
 
         TenantLogger::logAuth("User logged in: {$user->name}", [
             'id' => $user->id,
-            'email' => $user->email
+            'email' => $user->email,
+            'login_type' => $isStudentLogin ? 'student_id' : 'email'
         ]);
 
         return response()->json([
