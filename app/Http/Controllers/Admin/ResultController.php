@@ -1252,13 +1252,32 @@ class ResultController extends Controller
             ], 404);
         }
 
-        // Calculate Ranks per Exam Type
-        $ranksByExam = $results->groupBy('exam_type')->map(function ($examResults) {
-            $studentScores = $examResults->groupBy('student_id')->map(function ($items) {
-                // Use average GPA for a more robust ranking than total marks,
-                // as total marks depends on the number of subjects which might vary.
-                return $items->avg('gpa');
-            })->sortDesc();
+        // Calculate Ranks per Exam Type (only for students who passed)
+        $calculationService = new ResultCalculationService();
+        
+        // First, determine which students passed all subjects
+        $passStatusByStudent = [];
+        foreach ($results->groupBy('student_id') as $studentId => $studentResults) {
+            $firstResult = $studentResults->first();
+            $passCheck = $calculationService->checkStudentPassedAllSubjects(
+                $studentId,
+                $classId,
+                $academicYearId
+            );
+            $passStatusByStudent[$studentId] = $passCheck['all_passed'];
+        }
+        
+        $ranksByExam = $results->groupBy('exam_type')->map(function ($examResults) use ($passStatusByStudent) {
+            // Only include students who passed all subjects in ranking
+            $studentScores = $examResults->groupBy('student_id')
+                ->filter(function ($items, $studentId) use ($passStatusByStudent) {
+                    return $passStatusByStudent[$studentId] ?? false;
+                })
+                ->map(function ($items) {
+                    // Use average GPA for a more robust ranking than total marks,
+                    // as total marks depends on the number of subjects which might vary.
+                    return $items->avg('gpa');
+                })->sortDesc();
 
             $rank = 1;
             $ranks = [];
@@ -1277,9 +1296,7 @@ class ResultController extends Controller
         });
 
         // Group results by student
-        $calculationService = new ResultCalculationService();
-
-        $grouped = $results->groupBy('student_id')->map(function ($studentResults, $studentId) use ($ranksByExam, $calculationService) {
+        $grouped = $results->groupBy('student_id')->map(function ($studentResults, $studentId) use ($ranksByExam, $calculationService, $passStatusByStudent, $classId, $academicYearId) {
 
             $student = $studentResults->first()->student;
             $studentTotalMarks = 0;
@@ -1316,6 +1333,9 @@ class ResultController extends Controller
 
             $percentage = $studentMaxMarks > 0 ? round(($studentTotalMarks / $studentMaxMarks) * 100, 2) : 0;
             $gpa = $calculationService->calculateGPA($studentTotalMarks, $studentMaxMarks);
+            
+            // Check if student passed all subjects
+            $isPassed = $passStatusByStudent[$studentId] ?? false;
 
             return [
                 'student_id' => $student->id,
@@ -1327,13 +1347,16 @@ class ResultController extends Controller
                 'gpa' => $gpa,
                 'grade' => $calculationService->getGradeFromPercentage($percentage),
                 'division' => $calculationService->getDivisionFromPercentage($percentage),
+                'is_pass' => $isPassed,
                 'subjects' => $subjects,
-                'ranks' => $studentResults->pluck('exam_type')->unique()->map(function ($examType) use ($ranksByExam, $studentId) {
-                    return [
-                        'exam_type' => $examType,
-                        'rank' => $ranksByExam[$examType][$studentId] ?? null
-                    ];
-                })->values()
+                'ranks' => $isPassed 
+                    ? $studentResults->pluck('exam_type')->unique()->map(function ($examType) use ($ranksByExam, $studentId) {
+                        return [
+                            'exam_type' => $examType,
+                            'rank' => $ranksByExam[$examType][$studentId] ?? null
+                        ];
+                    })->values()
+                    : [] // Empty array for failed students - no rank
             ];
         })->values();
 
