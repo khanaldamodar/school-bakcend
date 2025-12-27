@@ -98,6 +98,33 @@ class ResultCalculationService
     }
 
     /**
+     * Check if practical marks should be included for a specific term
+     * 
+     * Rules:
+     * - If evaluation_per_term = true: Include practical in all terms (both simple and weighted)
+     * - If evaluation_per_term = false: Include practical only in last term (both simple and weighted)
+     * 
+     * This applies to BOTH calculation methods (simple and weighted)
+     * 
+     * @param int $termId
+     * @param ResultSetting $resultSetting
+     * @return bool
+     */
+    public function shouldIncludePractical(int $termId, ResultSetting $resultSetting): bool
+    {
+        // If evaluation_per_term is true, include practical in all terms
+        // This applies to both 'simple' and 'weighted' calculation methods
+        if ($resultSetting->evaluation_per_term) {
+            return true;
+        }
+        
+        // If evaluation_per_term is false, include practical only in last term
+        // This applies to both 'simple' and 'weighted' calculation methods
+        return $this->isLastTerm($termId, $resultSetting);
+    }
+
+
+    /**
      * Calculate percentage
      * 
      * @param float $obtained
@@ -272,6 +299,63 @@ class ResultCalculationService
                 $subject->theory_marks ?? 0,
                 $result->marks_practical,
                 $subject->practical_marks ?? 0,
+                $theoryPassMarks,
+                $practicalPassMarks
+            );
+
+            if ($passed) {
+                $passedSubjects[] = $subject->name;
+            } else {
+                $failedSubjects[] = $subject->name;
+                $allPassed = false;
+            }
+        }
+
+        return [
+            'all_passed' => $allPassed,
+            'passed_subjects' => $passedSubjects,
+            'failed_subjects' => $failedSubjects,
+            'total_subjects' => $results->count()
+        ];
+    }
+
+    /**
+     * Check if student passed all subjects for a specific term/exam type
+     * 
+     * @param int $studentId
+     * @param int $classId
+     * @param string $examType
+     * @param int $academicYearId
+     * @return array
+     */
+    public function checkStudentPassedTermSubjects(
+        int $studentId, 
+        int $classId, 
+        string $examType,
+        int $academicYearId
+    ): array {
+        
+        $results = Result::with('subject')
+            ->where('student_id', $studentId)
+            ->where('class_id', $classId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('exam_type', $examType)
+            ->get();
+
+        $passedSubjects = [];
+        $failedSubjects = [];
+        $allPassed = true;
+
+        foreach ($results as $result) {
+            $subject = $result->subject;
+            $theoryPassMarks = (float)($subject->theory_pass_marks ?? 33);
+            $practicalPassMarks = (float)($subject->practical_pass_marks ?? 33);
+            
+            $passed = $this->validateNepalPassingCriteria(
+                (float)$result->marks_theory,
+                (float)($subject->theory_marks ?? 0),
+                (float)$result->marks_practical,
+                (float)($subject->practical_marks ?? 0),
                 $theoryPassMarks,
                 $practicalPassMarks
             );
