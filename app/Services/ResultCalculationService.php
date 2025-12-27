@@ -125,6 +125,27 @@ class ResultCalculationService
 
 
     /**
+     * Check if activities should be included for a specific term
+     * 
+     * Rules:
+     * - If evaluation_per_term = true: Include activities in all terms
+     * - If evaluation_per_term = false: Include activities only in last term
+     * 
+     * @param int $termId
+     * @param ResultSetting $resultSetting
+     * @return bool
+     */
+    public function shouldIncludeActivities(int $termId, ResultSetting $resultSetting): bool
+    {
+        // Logic mirrors the practical marks inclusion
+        if ($resultSetting->evaluation_per_term) {
+            return true;
+        }
+        
+        return $this->isLastTerm($termId, $resultSetting);
+    }
+
+    /**
      * Calculate percentage
      * 
      * @param float $obtained

@@ -474,6 +474,7 @@ class ResultController extends Controller
         foreach ($results as $academicYearId => $classes) {
             $academicYear = AcademicYear::find($academicYearId);
             $academicYearName = $academicYear ? $academicYear->name : 'Unknown Year';
+            $resultSetting = ResultSetting::where('academic_year_id', $academicYearId)->first();
 
             foreach ($classes as $classId => $exams) {
                 $className = SchoolClass::find($classId)->name ?? 'Unknown Class';
@@ -484,14 +485,34 @@ class ResultController extends Controller
                     $totalMax = 0;
 
                     // Format individual subjects
-                    $formattedResults[$key][$examType] = $subjects->map(function ($result) use (&$totalObtained, &$totalMax) {
+                    $formattedResults[$key][$examType] = $subjects->map(function ($result) use (&$totalObtained, &$totalMax, $calculationService, $resultSetting) {
+                        
+                        // Check if practical marks should be included for this term
+                        $termId = $result->term_id;
+                        $includePractical = ($termId && $resultSetting) ? $calculationService->shouldIncludePractical($termId, $resultSetting) : true;
+                        
                         $theoryFull = (float)($result->subject->theory_marks ?? 0);
-                        $practicalFull = (float)($result->subject->practical_marks ?? 0);
+                        $practicalFull = $includePractical ? (float)($result->subject->practical_marks ?? 0) : 0;
+                        
                         $theoryObtained = (float)$result->marks_theory;
-                        $practicalObtained = (float)$result->marks_practical;
+                        $practicalObtained = $includePractical ? (float)$result->marks_practical : 0;
                         
                         $totalObtained += ($theoryObtained + $practicalObtained);
                         $totalMax += ($theoryFull + $practicalFull);
+
+                        // Check activities
+                        $includeActivities = ($termId && $resultSetting) ? $calculationService->shouldIncludeActivities($termId, $resultSetting) : true;
+                        $activities = [];
+                        if ($includeActivities && $result->activities->isNotEmpty()) {
+                            $activities = $result->activities->map(function($act) {
+                                return [
+                                    'activity_name' => $act->activity->activity_name ?? 'Unknown',
+                                    'full_marks' => $act->activity->full_marks ?? 0,
+                                    'pass_marks' => $act->activity->pass_marks ?? 0,
+                                    'marks_obtained' => $act->marks
+                                ];
+                            })->values();
+                        }
 
                         return [
                             'subject_name' => $result->subject->name,
@@ -504,6 +525,7 @@ class ResultController extends Controller
                             'gpa' => $result->gpa,
                             'exam_type' => $result->exam_type,
                             'remarks' => $result->remarks,
+                            'activities' => $activities
                         ];
                     });
 
@@ -1329,6 +1351,21 @@ class ResultController extends Controller
                 // Check if practical marks should be included for this term
                 $includePractical = $result->term_id ? $calculationService->shouldIncludePractical($result->term_id, $resultSetting) : true;
                 
+                // Check if activities should be included for this term
+                $includeActivities = $result->term_id ? $calculationService->shouldIncludeActivities($result->term_id, $resultSetting) : true;
+
+                $activities = [];
+                if ($includeActivities && $result->activities->isNotEmpty()) {
+                    $activities = $result->activities->map(function($act) {
+                        return [
+                            'activity_name' => $act->activity->activity_name ?? 'Unknown',
+                            'full_marks' => $act->activity->full_marks ?? 0,
+                            'pass_marks' => $act->activity->pass_marks ?? 0,
+                            'marks_obtained' => $act->marks
+                        ];
+                    })->values();
+                }
+                
                 $practicalFull = $includePractical ? (float)($result->subject->practical_marks ?? 0) : 0;
                 $practicalPass = $includePractical ? (float)($result->subject->practical_pass_marks ?? 0) : 0;
                 $practicalObtained = $includePractical ? (float)$result->marks_practical : 0;
@@ -1353,6 +1390,7 @@ class ResultController extends Controller
                     'percentage' => $result->percentage,
                     'exam_date' => $result->exam_date,
                     'remarks' => $result->remarks,
+                    'activities' => $activities,
                 ];
             });
 
