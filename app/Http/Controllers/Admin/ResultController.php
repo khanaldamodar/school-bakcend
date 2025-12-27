@@ -1329,9 +1329,15 @@ class ResultController extends Controller
         $resultSetting = $calculationService->getResultSetting($academicYearId);
 
         // Group results by student AND exam type to prevent mixing terms on one marksheet
+        // Fetch all subjects assigned to this class to calculate the correct total max marks
+        $allClassSubjects = SchoolClass::with('subjects')->find($classId)->subjects;
+
         $grouped = $results->groupBy(function($item) {
             return $item->student_id . '_' . $item->exam_type;
-        })->map(function ($studentTermResults) use ($ranksByExam, $calculationService, $passStatusMap, $classId, $academicYearId, $resultSetting) {
+        })->filter(function ($studentTermResults) use ($allClassSubjects) {
+            // Only show result if student has marks for ALL subjects in the class
+            return $studentTermResults->count() >= $allClassSubjects->count();
+        })->map(function ($studentTermResults) use ($ranksByExam, $calculationService, $passStatusMap, $classId, $academicYearId, $resultSetting, $allClassSubjects) {
 
             $firstItem = $studentTermResults->first();
             $student = $firstItem->student;
@@ -1394,8 +1400,21 @@ class ResultController extends Controller
                 ];
             });
 
-            $percentage = $studentMaxMarks > 0 ? round(($studentTotalMarks / $studentMaxMarks) * 100, 2) : 0;
-            $gpa = $calculationService->calculateGPA($studentTotalMarks, $studentMaxMarks);
+            // Calculate Class Total Max Marks based on ALL subjects assigned to the class
+            $termId = $firstItem->term_id ?? null;
+            $classTotalMax = 0;
+            
+            foreach ($allClassSubjects as $sub) {
+                $subIncludePractical = $termId ? $calculationService->shouldIncludePractical($termId, $resultSetting) : true;
+                
+                $classTotalMax += (float)$sub->theory_marks;
+                if ($subIncludePractical) {
+                    $classTotalMax += (float)$sub->practical_marks;
+                }
+            }
+
+            $percentage = $classTotalMax > 0 ? round(($studentTotalMarks / $classTotalMax) * 100, 2) : 0;
+            $gpa = $calculationService->calculateGPA($studentTotalMarks, $classTotalMax);
             
             // Check if student passed all subjects for THIS specific exam
             $isPassed = $passStatusMap[$examType][$studentId] ?? false;
@@ -1407,7 +1426,7 @@ class ResultController extends Controller
                 'student_name' => $student->first_name . ' ' . $student->last_name,
                 'roll_no' => $student->roll_number,
                 'total_marks' => $studentTotalMarks,
-                'max_marks' => $studentMaxMarks,
+                'max_marks' => $classTotalMax,
                 'percentage' => $percentage,
                 'gpa' => $gpa,
                 'grade' => $calculationService->getGradeFromPercentage($percentage),
