@@ -256,6 +256,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     // ? To generate final result
     Route::post('tenants/{domain}/classes/{classId}/generate-final', [ResultController::class, 'generateClassFinalResult']);
+    
+    // ? To get final results
+    Route::get('tenants/{domain}/classes/{classId}/final-results', [ResultController::class, 'getClassFinalResults']);
+    Route::get('tenants/{domain}/students/{studentId}/final-result', [ResultController::class, 'getStudentFinalResult']);
 
     // ? Academic Year Viewing
     Route::get('tenants/{domain}/academic-years', [AcademicYearController::class, 'index']);

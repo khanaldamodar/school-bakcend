@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\AcademicYear;
 use App\Models\Admin\ExtraCurricularActivity;
+use App\Models\Admin\FinalResult;
 use App\Models\Admin\Result;
 use App\Models\Admin\ResultActivity;
+use App\Models\Admin\ResultSetting;
 use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Student;
 use App\Models\Admin\Subject;
@@ -1384,6 +1386,7 @@ class ResultController extends Controller
                 $includeActivities = ($result->term_id && $resultSetting) ? $calculationService->shouldIncludeActivities($result->term_id, $resultSetting) : true;
 
                 $activities = [];
+                $activitiesPassMarks = 0;
                 if ($includeActivities && $result->activities->isNotEmpty()) {
                     $activities = $result->activities->map(function($act) {
                         return [
@@ -1393,10 +1396,16 @@ class ResultController extends Controller
                             'marks_obtained' => $act->marks
                         ];
                     })->values();
+                    
+                    // Calculate sum of activities' pass marks
+                    $activitiesPassMarks = $result->activities->sum(function($act) {
+                        return (float)($act->activity->pass_marks ?? 0);
+                    });
                 }
                 
                 $practicalFull = $includePractical ? (float)($result->subject->practical_marks ?? 0) : 0;
-                $practicalPass = $includePractical ? (float)($result->subject->practical_pass_marks ?? 0) : 0;
+                // Use activities pass marks sum, fallback to subject's practical_pass_marks if no activities
+                $practicalPass = $includePractical ? ($activitiesPassMarks > 0 ? $activitiesPassMarks : (float)($result->subject->practical_pass_marks ?? 0)) : 0;
                 $practicalObtained = $includePractical ? (float)$result->marks_practical : 0;
                 
                 $totalObtained = (float)($result->marks_theory + $practicalObtained);
@@ -1595,6 +1604,7 @@ class ResultController extends Controller
 
     /**
      * Helper to update final result for a student
+     * Stores final result in separate final_results table to avoid affecting term results
      */
     private function updateFinalResult($studentId, $classId, $academicYearId = null)
     {
@@ -1607,22 +1617,56 @@ class ResultController extends Controller
             // Only proceed if weighted
             if ($resultSetting->calculation_method !== 'weighted') return;
 
-            // Calculate
+            // Calculate weighted final result
             $data = $calculationService->calculateWeightedFinalResult($studentId, $classId, $resultSetting, $academicYearId);
 
             if ($data && isset($data['subject_results'])) {
+                // Store subject-wise final results in final_results table
                 foreach ($data['subject_results'] as $subjectResult) {
-                    $finalSubjectValue = ($data['result_type'] === 'percentage') 
-                        ? $subjectResult['weighted_percentage'] 
-                        : $subjectResult['weighted_gpa'];
-
-                    // Update rows for THIS student and THIS SPECIFIC subject
-                    Result::where('student_id', $studentId)
-                        ->where('class_id', $classId)
-                        ->where('subject_id', $subjectResult['subject_id'])
-                        ->where('academic_year_id', $academicYearId)
-                        ->update(['final_result' => $finalSubjectValue]);
+                    FinalResult::updateOrCreate(
+                        [
+                            'student_id' => $studentId,
+                            'class_id' => $classId,
+                            'academic_year_id' => $academicYearId,
+                            'subject_id' => $subjectResult['subject_id'],
+                        ],
+                        [
+                            'final_gpa' => $subjectResult['weighted_gpa'],
+                            'final_percentage' => $subjectResult['weighted_percentage'],
+                            'final_theory_marks' => $subjectResult['obtained_marks_theory'] ?? null,
+                            'final_practical_marks' => $subjectResult['obtained_marks_practical'] ?? null,
+                            'final_grade' => $subjectResult['grade'] ?? null,
+                            'final_division' => $subjectResult['division'] ?? null,
+                            'is_passed' => $subjectResult['passed_nepal_criteria'] ?? false,
+                            'result_type' => $data['result_type'],
+                            'calculation_method' => 'weighted',
+                        ]
+                    );
                 }
+
+                // Store overall final result (without subject_id)
+                FinalResult::updateOrCreate(
+                    [
+                        'student_id' => $studentId,
+                        'class_id' => $classId,
+                        'academic_year_id' => $academicYearId,
+                        'subject_id' => null,
+                    ],
+                    [
+                        'final_gpa' => $data['final_gpa'],
+                        'final_percentage' => $data['final_percentage'],
+                        'final_grade' => $data['final_grade'] ?? null,
+                        'final_division' => $data['final_division'] ?? null,
+                        'is_passed' => $data['nepal_passed_all_subjects'] ?? false,
+                        'result_type' => $data['result_type'],
+                        'calculation_method' => 'weighted',
+                        'term_breakdown' => [
+                            'total_weight' => $data['total_weight'] ?? null,
+                            'passed_subjects' => $data['nepal_passed_subjects'] ?? [],
+                            'failed_subjects' => $data['nepal_failed_subjects'] ?? [],
+                        ],
+                    ]
+                );
             }
         } catch (\Exception $e) {
             // Silently fail or log, don't block the main request
@@ -1632,6 +1676,7 @@ class ResultController extends Controller
 
     /**
      * Generate final weighted result for the whole class
+     * Stores results in final_results table to preserve term-wise results
      */
     public function generateClassFinalResult(Request $request, $domain, $classId)
     {
@@ -1720,65 +1765,314 @@ class ResultController extends Controller
             ], 400);
         }
 
-        $successCount = 0;
-        $errors = [];
-        $results = [];
+        DB::beginTransaction();
+        
+        try {
+            $successCount = 0;
+            $errors = [];
+            $results = [];
+            $studentFinalScores = []; // For rank calculation
 
-        foreach ($students as $student) {
-            // Calculate weighted final result for THIS specific student
-            $finalResultData = $calculationService->calculateWeightedFinalResult(
-                $student->id,
-                $classId,
-                $resultSetting,
-                $academicYearId // You might need to get this from request or session
-            );
+            foreach ($students as $student) {
+                // Calculate weighted final result for THIS specific student
+                $finalResultData = $calculationService->calculateWeightedFinalResult(
+                    $student->id,
+                    $classId,
+                    $resultSetting,
+                    $academicYearId
+                );
 
-            if ($finalResultData && isset($finalResultData['subject_results'])) {
-                $totalUpdated = 0;
-                foreach ($finalResultData['subject_results'] as $subjectResult) {
-                    $finalSubjectValue = ($finalResultData['result_type'] === 'percentage') 
-                        ? $subjectResult['weighted_percentage'] 
-                        : $subjectResult['weighted_gpa'];
+                if ($finalResultData && isset($finalResultData['subject_results'])) {
+                    // Store subject-wise final results in final_results table
+                    foreach ($finalResultData['subject_results'] as $subjectResult) {
+                        FinalResult::updateOrCreate(
+                            [
+                                'student_id' => $student->id,
+                                'class_id' => $classId,
+                                'academic_year_id' => $academicYearId,
+                                'subject_id' => $subjectResult['subject_id'],
+                            ],
+                            [
+                                'final_gpa' => $subjectResult['weighted_gpa'],
+                                'final_percentage' => $subjectResult['weighted_percentage'],
+                                'final_theory_marks' => $subjectResult['obtained_marks_theory'] ?? null,
+                                'final_practical_marks' => $subjectResult['obtained_marks_practical'] ?? null,
+                                'final_grade' => $subjectResult['grade'] ?? null,
+                                'final_division' => $subjectResult['division'] ?? null,
+                                'is_passed' => $subjectResult['passed_nepal_criteria'] ?? false,
+                                'result_type' => $finalResultData['result_type'],
+                                'calculation_method' => 'weighted',
+                            ]
+                        );
+                    }
 
-                    // Update rows for THIS student and THIS SPECIFIC subject
-                    $updated = Result::where('student_id', $student->id)
-                        ->where('class_id', $classId)
-                        ->where('subject_id', $subjectResult['subject_id'])
-                        ->where('academic_year_id', $academicYearId)
-                        ->update(['final_result' => $finalSubjectValue]);
+                    // Store overall final result (without subject_id)
+                    FinalResult::updateOrCreate(
+                        [
+                            'student_id' => $student->id,
+                            'class_id' => $classId,
+                            'academic_year_id' => $academicYearId,
+                            'subject_id' => null,
+                        ],
+                        [
+                            'final_gpa' => $finalResultData['final_gpa'],
+                            'final_percentage' => $finalResultData['final_percentage'],
+                            'final_grade' => $finalResultData['final_grade'] ?? null,
+                            'final_division' => $finalResultData['final_division'] ?? null,
+                            'is_passed' => $finalResultData['nepal_passed_all_subjects'] ?? false,
+                            'result_type' => $finalResultData['result_type'],
+                            'calculation_method' => 'weighted',
+                            'term_breakdown' => [
+                                'total_weight' => $finalResultData['total_weight'] ?? null,
+                                'passed_subjects' => $finalResultData['nepal_passed_subjects'] ?? [],
+                                'failed_subjects' => $finalResultData['nepal_failed_subjects'] ?? [],
+                            ],
+                        ]
+                    );
                     
-                    $totalUpdated += $updated;
+                    $successCount++;
+                    
+                    // Track for ranking (only passed students get ranks)
+                    if ($finalResultData['nepal_passed_all_subjects'] ?? false) {
+                        $studentFinalScores[$student->id] = [
+                            'gpa' => $finalResultData['final_gpa'],
+                            'percentage' => $finalResultData['final_percentage'],
+                        ];
+                    }
+                    
+                    // Store result details for response
+                    $results[] = [
+                        'student_id' => $student->id,
+                        'student_name' => $student->first_name . ' ' . $student->last_name,
+                        'roll_number' => $student->roll_number,
+                        'final_result' => $finalResultData['final_result'],
+                        'final_gpa' => $finalResultData['final_gpa'] ?? null,
+                        'final_percentage' => $finalResultData['final_percentage'] ?? null,
+                        'final_grade' => $finalResultData['final_grade'] ?? null,
+                        'final_division' => $finalResultData['final_division'] ?? null,
+                        'is_passed' => $finalResultData['nepal_passed_all_subjects'] ?? false,
+                        'result_type' => $finalResultData['result_type'],
+                        'subject_results' => $finalResultData['subject_results']
+                    ];
+                } else {
+                    $errors[] = [
+                        'student_id' => $student->id,
+                        'student_name' => $student->first_name . ' ' . $student->last_name,
+                        'error' => 'Incomplete term results or missing data'
+                    ];
                 }
-                
-                $successCount++;
-                
-                // Store result details for response
-                $results[] = [
-                    'student_id' => $student->id,
-                    'student_name' => $student->first_name . ' ' . $student->last_name,
-                    'final_result' => $finalResultData['final_result'],
-                    'final_gpa' => $finalResultData['final_gpa'] ?? null,
-                    'final_percentage' => $finalResultData['final_percentage'] ?? null,
-                    'result_type' => $finalResultData['result_type'],
-                    'updated_records' => $totalUpdated,
-                    'subject_results' => $finalResultData['subject_results']
-                ];
-            } else {
-                $errors[] = [
-                    'student_id' => $student->id,
-                    'student_name' => $student->first_name . ' ' . $student->last_name,
-                    'error' => 'Incomplete term results or missing data'
-                ];
             }
+
+            // Calculate and update ranks for passed students
+            if (!empty($studentFinalScores)) {
+                // Sort by GPA (or percentage based on result_type) descending
+                $sortKey = $resultSetting->result_type === 'percentage' ? 'percentage' : 'gpa';
+                uasort($studentFinalScores, function($a, $b) use ($sortKey) {
+                    return $b[$sortKey] <=> $a[$sortKey];
+                });
+
+                $rank = 1;
+                $prevScore = null;
+                $count = 0;
+                
+                foreach ($studentFinalScores as $studentId => $scores) {
+                    $count++;
+                    $currentScore = $scores[$sortKey];
+                    
+                    if ($prevScore !== $currentScore) {
+                        $rank = $count;
+                    }
+                    
+                    // Update rank in final_results table
+                    FinalResult::where('student_id', $studentId)
+                        ->where('class_id', $classId)
+                        ->where('academic_year_id', $academicYearId)
+                        ->whereNull('subject_id')
+                        ->update(['rank' => $rank]);
+                    
+                    $prevScore = $currentScore;
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => "Final result generated for $successCount students.",
+                'total_students' => $students->count(),
+                'generated_count' => $successCount,
+                'results' => $results,
+                'errors' => $errors
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to generate final results',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
+
+    /**
+     * Get final results for a class
+     */
+    public function getClassFinalResults(Request $request, $domain, $classId)
+    {
+        $calculationService = new ResultCalculationService();
+        
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        // Get overall final results (where subject_id is null)
+        $finalResults = FinalResult::with(['student:id,first_name,last_name,roll_number', 'class:id,name'])
+            ->where('class_id', $classId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('subject_id')
+            ->orderBy('rank')
+            ->get();
+
+        if ($finalResults->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No final results found for this class. Please generate final results first.'
+            ], 404);
+        }
+
+        $formattedResults = $finalResults->map(function ($result) use ($classId, $academicYearId) {
+            // Get subject-wise final results for this student
+            $subjectResults = FinalResult::with('subject:id,name,theory_marks,practical_marks')
+                ->where('student_id', $result->student_id)
+                ->where('class_id', $classId)
+                ->where('academic_year_id', $academicYearId)
+                ->whereNotNull('subject_id')
+                ->get()
+                ->map(function ($sr) {
+                    return [
+                        'subject_id' => $sr->subject_id,
+                        'subject_name' => $sr->subject->name ?? 'Unknown',
+                        'final_gpa' => $sr->final_gpa,
+                        'final_percentage' => $sr->final_percentage,
+                        'final_theory_marks' => $sr->final_theory_marks,
+                        'final_practical_marks' => $sr->final_practical_marks,
+                        'final_grade' => $sr->final_grade,
+                        'is_passed' => $sr->is_passed,
+                    ];
+                });
+
+            return [
+                'student_id' => $result->student_id,
+                'student_name' => $result->student ? 
+                    $result->student->first_name . ' ' . $result->student->last_name : 'Unknown',
+                'roll_number' => $result->student->roll_number ?? null,
+                'final_gpa' => $result->final_gpa,
+                'final_percentage' => $result->final_percentage,
+                'final_grade' => $result->final_grade,
+                'final_division' => $result->final_division,
+                'is_passed' => $result->is_passed,
+                'rank' => $result->rank,
+                'result_type' => $result->result_type,
+                'term_breakdown' => $result->term_breakdown,
+                'subject_results' => $subjectResults,
+            ];
+        });
+
+        $class = SchoolClass::find($classId);
 
         return response()->json([
             'status' => true,
-            'message' => "Final result generated for $successCount students.",
-            'total_students' => $students->count(),
-            'generated_count' => $successCount,
-            'results' => $results,
-            'errors' => $errors
+            'message' => 'Final results fetched successfully',
+            'class_id' => $classId,
+            'class_name' => $class->name ?? 'Unknown',
+            'academic_year_id' => $academicYearId,
+            'total_students' => $finalResults->count(),
+            'passed_count' => $finalResults->where('is_passed', true)->count(),
+            'failed_count' => $finalResults->where('is_passed', false)->count(),
+            'data' => $formattedResults
+        ]);
+    }
+
+    /**
+     * Get final result for a specific student
+     */
+    public function getStudentFinalResult(Request $request, $domain, $studentId)
+    {
+        $calculationService = new ResultCalculationService();
+        
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        $student = Student::with('class:id,name')->findOrFail($studentId);
+
+        // Get overall final result
+        $finalResult = FinalResult::where('student_id', $studentId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('subject_id')
+            ->first();
+
+        if (!$finalResult) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No final result found for this student. Final results may not have been generated yet.'
+            ], 404);
+        }
+
+        // Get subject-wise final results
+        $subjectResults = FinalResult::with('subject:id,name,theory_marks,practical_marks,theory_pass_marks,practical_pass_marks')
+            ->where('student_id', $studentId)
+            ->where('class_id', $finalResult->class_id)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNotNull('subject_id')
+            ->get()
+            ->map(function ($sr) {
+                return [
+                    'subject_id' => $sr->subject_id,
+                    'subject_name' => $sr->subject->name ?? 'Unknown',
+                    'theory_full_marks' => $sr->subject->theory_marks ?? 0,
+                    'practical_full_marks' => $sr->subject->practical_marks ?? 0,
+                    'theory_pass_marks' => $sr->subject->theory_pass_marks ?? 0,
+                    'practical_pass_marks' => $sr->subject->practical_pass_marks ?? 0,
+                    'final_theory_marks' => $sr->final_theory_marks,
+                    'final_practical_marks' => $sr->final_practical_marks,
+                    'final_gpa' => $sr->final_gpa,
+                    'final_percentage' => $sr->final_percentage,
+                    'final_grade' => $sr->final_grade,
+                    'is_passed' => $sr->is_passed,
+                ];
+            });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Final result fetched successfully',
+            'data' => [
+                'student' => [
+                    'id' => $student->id,
+                    'name' => $student->first_name . ' ' . $student->last_name,
+                    'roll_number' => $student->roll_number,
+                    'class' => $student->class->name ?? 'N/A',
+                ],
+                'final_result' => [
+                    'final_gpa' => $finalResult->final_gpa,
+                    'final_percentage' => $finalResult->final_percentage,
+                    'final_grade' => $finalResult->final_grade,
+                    'final_division' => $finalResult->final_division,
+                    'is_passed' => $finalResult->is_passed,
+                    'rank' => $finalResult->rank,
+                    'result_type' => $finalResult->result_type,
+                    'calculation_method' => $finalResult->calculation_method,
+                    'term_breakdown' => $finalResult->term_breakdown,
+                ],
+                'subject_results' => $subjectResults,
+            ]
         ]);
     }
 }
+

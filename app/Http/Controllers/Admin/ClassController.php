@@ -167,7 +167,7 @@ class ClassController extends Controller
                     return $query->where('section', $request->section);
                 })->ignore($id),
             ],
-            'section' => 'sometimes|string|max:50',
+            'section' => 'nullable|string|max:50',
             'class_teacher_id' => 'nullable|exists:teachers,id',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id'

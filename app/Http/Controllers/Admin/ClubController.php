@@ -67,6 +67,7 @@ class ClubController extends Controller
                 'students' => $club->students->map(function ($student) {
                     return [
                         'id' => $student->id,
+                        'student_club_id' => $student->pivot->id,
                         'name' => trim(
                             $student->first_name . ' ' .
                             $student->middle_name . ' ' .
@@ -296,8 +297,8 @@ class ClubController extends Controller
             'students' => $club->students->map(function ($student) {
                 return [
                     'id' => $student->id,
+                    'student_club_id' => $student->pivot->id,
                     'name' => trim(
-                        $student->id,
                         $student->first_name . ' ' .
                         $student->middle_name . ' ' .
                         $student->last_name

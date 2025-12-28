@@ -15,7 +15,7 @@ class Club extends Model
     public function students()
     {
         return $this->belongsToMany(Student::class, 'student_club')
-            ->withPivot('position')
+            ->withPivot('id', 'position')
             ->withTimestamps();
     }
 
