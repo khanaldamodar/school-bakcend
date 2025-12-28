@@ -264,14 +264,20 @@ class ResultCalculationService
      */
     public function getPracticalPassMarksFromActivities(int $subjectId, int $classId): float
     {
-        $activities = \App\Models\Admin\ExtraCurricularActivity::where('subject_id', $subjectId)
-            ->where(function ($q) use ($classId) {
-                $q->where('class_id', $classId)
-                  ->orWhereNull('class_id');
-            })
-            ->get();
-        
-        return $activities->sum('pass_marks');
+        try {
+            $activities = \App\Models\Admin\ExtraCurricularActivity::where('subject_id', $subjectId)
+                ->where(function ($q) use ($classId) {
+                    $q->where('class_id', $classId)
+                      ->orWhereNull('class_id');
+                })
+                ->get();
+            
+            return (float)$activities->sum('pass_marks');
+        } catch (\Exception $e) {
+            // If there's any error fetching activities, return 0 to fall back to default
+            \Log::warning("Failed to get practical pass marks from activities: " . $e->getMessage());
+            return 0;
+        }
     }
 
     /**

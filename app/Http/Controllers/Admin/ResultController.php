@@ -1288,16 +1288,21 @@ class ResultController extends Controller
         
         // First, determine which students passed all subjects PER EXAM TYPE
         $passStatusMap = [];
-        foreach ($results->groupBy('exam_type') as $examType => $examResults) {
-            foreach ($examResults->groupBy('student_id') as $studentId => $studentExamResults) {
-                $passCheck = $calculationService->checkStudentPassedTermSubjects(
-                    $studentId,
-                    $classId,
-                    $examType,
-                    $academicYearId
-                );
-                $passStatusMap[$examType][$studentId] = $passCheck['all_passed'];
+        try {
+            foreach ($results->groupBy('exam_type') as $examType => $examResults) {
+                foreach ($examResults->groupBy('student_id') as $studentId => $studentExamResults) {
+                    $passCheck = $calculationService->checkStudentPassedTermSubjects(
+                        $studentId,
+                        $classId,
+                        $examType,
+                        $academicYearId
+                    );
+                    $passStatusMap[$examType][$studentId] = $passCheck['all_passed'];
+                }
             }
+        } catch (\Exception $e) {
+            \Log::warning("Failed to calculate pass status in getWholeClassResults: " . $e->getMessage());
+            // Continue without pass status if there's an error
         }
         
         $ranksByExam = $results->groupBy('exam_type')->map(function ($examResults, $examType) use ($passStatusMap) {
@@ -1326,18 +1331,36 @@ class ResultController extends Controller
             return $ranks;
         });
 
-        $resultSetting = $calculationService->getResultSetting($academicYearId);
+        // Try to get result setting, but don't fail if it doesn't exist
+        $resultSetting = null;
+        try {
+            $resultSetting = $calculationService->getResultSetting($academicYearId);
+        } catch (\Exception $e) {
+            \Log::warning("Result setting not configured in getWholeClassResults: " . $e->getMessage());
+            // Continue without result setting - will use defaults
+        }
 
         // Group results by student AND exam type to prevent mixing terms on one marksheet
         // Fetch all subjects assigned to this class to calculate the correct total max marks
         $allClassSubjects = SchoolClass::with('subjects')->find($classId)->subjects;
 
+        // Option to show only students with complete results (all subjects)
+        // Default is false to show all students with any results
+        $onlyComplete = $request->query('only_complete', false);
+
         $grouped = $results->groupBy(function($item) {
             return $item->student_id . '_' . $item->exam_type;
-        })->filter(function ($studentTermResults) use ($allClassSubjects) {
-            // Only show result if student has marks for ALL subjects in the class
-            return $studentTermResults->count() >= $allClassSubjects->count();
-        })->map(function ($studentTermResults) use ($ranksByExam, $calculationService, $passStatusMap, $classId, $academicYearId, $resultSetting, $allClassSubjects) {
+        });
+
+        // Apply filter only if requested
+        if ($onlyComplete) {
+            $grouped = $grouped->filter(function ($studentTermResults) use ($allClassSubjects) {
+                // Only show result if student has marks for ALL subjects in the class
+                return $studentTermResults->count() >= $allClassSubjects->count();
+            });
+        }
+
+        $grouped = $grouped->map(function ($studentTermResults) use ($ranksByExam, $calculationService, $passStatusMap, $classId, $academicYearId, $resultSetting, $allClassSubjects) {
 
             $firstItem = $studentTermResults->first();
             $student = $firstItem->student;
@@ -1355,10 +1378,10 @@ class ResultController extends Controller
                 $theoryPass = (float)($result->subject->theory_pass_marks ?? 0);
                 
                 // Check if practical marks should be included for this term
-                $includePractical = $result->term_id ? $calculationService->shouldIncludePractical($result->term_id, $resultSetting) : true;
+                $includePractical = ($result->term_id && $resultSetting) ? $calculationService->shouldIncludePractical($result->term_id, $resultSetting) : true;
                 
                 // Check if activities should be included for this term
-                $includeActivities = $result->term_id ? $calculationService->shouldIncludeActivities($result->term_id, $resultSetting) : true;
+                $includeActivities = ($result->term_id && $resultSetting) ? $calculationService->shouldIncludeActivities($result->term_id, $resultSetting) : true;
 
                 $activities = [];
                 if ($includeActivities && $result->activities->isNotEmpty()) {
@@ -1405,7 +1428,7 @@ class ResultController extends Controller
             $classTotalMax = 0;
             
             foreach ($allClassSubjects as $sub) {
-                $subIncludePractical = $termId ? $calculationService->shouldIncludePractical($termId, $resultSetting) : true;
+                $subIncludePractical = ($termId && $resultSetting) ? $calculationService->shouldIncludePractical($termId, $resultSetting) : true;
                 
                 $classTotalMax += (float)$sub->theory_marks;
                 if ($subIncludePractical) {

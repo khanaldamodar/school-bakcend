@@ -33,37 +33,7 @@ class SubjectController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    // public function store(Request $request)
-    // {
 
-    //     $validator = Validator::make($request->all(), [
-    //         'name' => 'required|string|max:255|unique:subjects,name',
-    //         "subject_code" => "nullable|string",
-    //         'theory_marks' => 'required|integer|min:0',
-    //         'practical_marks' => 'required|integer|min:0',
-    //         'teacher_id' => 'nullable|exists:users,id',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'status' => false,
-    //             'message' => 'Validation Failed',
-    //             'error' => $validator->errors()
-    //         ], 422);
-    //     }
-
-    //     $data = $validator->validated();
-
-    //     $subject = Subject::create($data);
-    //     return response()->json([
-    //         'message' => 'Subject created successfully',
-    //         'data' => $subject
-    //     ], 201);
-
-    // }
 
     /**
      * Display the specified resource.
