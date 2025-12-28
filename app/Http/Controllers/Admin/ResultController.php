@@ -1483,12 +1483,66 @@ class ResultController extends Controller
             ], 400);
         }
 
+        // Get academic year
+        $academicYearId = $request->query('academic_year_id');
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        if (!$academicYearId) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No active academic year found.'
+            ], 400);
+        }
+
+        // Get all terms from result setting
+        $terms = $resultSetting->terms()->orderBy('id')->get();
+        if ($terms->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No terms configured in result settings.'
+            ], 400);
+        }
+
+        // Check if student has results for all terms
+        $missingTerms = [];
+        foreach ($terms as $term) {
+            $hasResults = Result::where('student_id', $validated['student_id'])
+                ->where('class_id', $validated['class_id'])
+                ->where('term_id', $term->id)
+                ->where('academic_year_id', $academicYearId)
+                ->exists();
+            
+            if (!$hasResults) {
+                $missingTerms[] = $term->name ?? "Term ID: {$term->id}";
+            }
+        }
+
+        // If student has missing term results, return error with details
+        if (!empty($missingTerms)) {
+            $student = Student::find($validated['student_id']);
+            return response()->json([
+                'status' => false,
+                'message' => 'Cannot generate final result. Student is missing results for one or more terms.',
+                'reason' => 'Student must have results for all configured terms before final result can be generated.',
+                'student' => [
+                    'id' => $student->id,
+                    'name' => $student->first_name . ' ' . $student->last_name,
+                    'roll_number' => $student->roll_number
+                ],
+                'missing_terms' => $missingTerms,
+                'required_terms' => $terms->pluck('name', 'id')->toArray()
+            ], 400);
+        }
 
         // Calculate weighted final result
         $finalResultData = $calculationService->calculateWeightedFinalResult(
             $validated['student_id'],
             $validated['class_id'],
-            $resultSetting
+            $resultSetting,
+            $academicYearId
         );
 
         if (!$finalResultData) {
@@ -1593,6 +1647,54 @@ class ResultController extends Controller
                 'status' => false,
                 'message' => 'No students found in this class.'
             ], 404);
+        }
+
+        // Get all terms from result setting
+        $terms = $resultSetting->terms()->orderBy('id')->get();
+        if ($terms->isEmpty()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No terms configured in result settings.'
+            ], 400);
+        }
+
+        // Check if all students have results for all terms
+        $missingTermsData = [];
+        foreach ($students as $student) {
+            $missingTerms = [];
+            foreach ($terms as $term) {
+                $hasResults = Result::where('student_id', $student->id)
+                    ->where('class_id', $classId)
+                    ->where('term_id', $term->id)
+                    ->where('academic_year_id', $academicYearId)
+                    ->exists();
+                
+                if (!$hasResults) {
+                    $missingTerms[] = $term->name ?? "Term ID: {$term->id}";
+                }
+            }
+            
+            if (!empty($missingTerms)) {
+                $missingTermsData[] = [
+                    'student_id' => $student->id,
+                    'student_name' => $student->first_name . ' ' . $student->last_name,
+                    'roll_number' => $student->roll_number,
+                    'missing_terms' => $missingTerms
+                ];
+            }
+        }
+
+        // If any student has missing term results, return error with details
+        if (!empty($missingTermsData)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Cannot generate final results. Some students are missing results for one or more terms.',
+                'reason' => 'All students must have results for all configured terms before final results can be generated.',
+                'missing_data' => $missingTermsData,
+                'total_affected_students' => count($missingTermsData),
+                'total_students' => $students->count(),
+                'required_terms' => $terms->pluck('name', 'id')->toArray()
+            ], 400);
         }
 
         $successCount = 0;

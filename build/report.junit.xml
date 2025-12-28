@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Tests\Feature\QuickTest" file="D:\Shakta Technology\schools\multytenant\tests\Feature\QuickTest.php" tests="1" assertions="0" errors="1" failures="0" skipped="0" time="0.562893">
+    <testcase name="basic_application_test" file="D:\Shakta Technology\schools\multytenant\tests\Feature\QuickTest.php" line="10" class="Tests\Feature\QuickTest" classname="Tests.Feature.QuickTest" assertions="0" time="0.562893">
+      <error type="RuntimeException">Tests\Feature\QuickTest::basic_application_test&#13;
+RuntimeException: Unsupported cipher or incorrect key length. Supported ciphers are: aes-128-cbc, aes-256-cbc, aes-128-gcm, aes-256-gcm.
+&#13;
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Encryption\Encrypter.php:61
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Encryption\EncryptionServiceProvider.php:32
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:1154
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:972
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Application.php:1078
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:903
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Application.php:1058
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:1379
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:1278
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:1201
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:972
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Application.php:1078
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Container\Container.php:903
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Application.php:1058
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Http\Kernel.php:257
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Http\Kernel.php:215
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Testing\Concerns\MakesHttpRequests.php:611
+D:\Shakta Technology\schools\multytenant\vendor\laravel\framework\src\Illuminate\Foundation\Testing\Concerns\MakesHttpRequests.php:368
+D:\Shakta Technology\schools\multytenant\tests\Feature\QuickTest.php:12</error>
+      <system-out> </system-out>
+    </testcase>
+  </testsuite>
+</testsuites>

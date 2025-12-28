@@ -256,6 +256,25 @@ class ResultCalculationService
     }
 
     /**
+     * Get practical pass marks from activities for a specific subject and class
+     * 
+     * @param int $subjectId
+     * @param int $classId
+     * @return float
+     */
+    public function getPracticalPassMarksFromActivities(int $subjectId, int $classId): float
+    {
+        $activities = \App\Models\Admin\ExtraCurricularActivity::where('subject_id', $subjectId)
+            ->where(function ($q) use ($classId) {
+                $q->where('class_id', $classId)
+                  ->orWhereNull('class_id');
+            })
+            ->get();
+        
+        return $activities->sum('pass_marks');
+    }
+
+    /**
      * Validate Nepal Passing Criteria (35% in theory AND practical separately for new standard, but user said 33%)
      * NEB currently uses 35% for theory and practical separately as of recent updates.
      * User explicitly said 33%, so I will use 33% but allow flexibility.
@@ -266,6 +285,8 @@ class ResultCalculationService
      * @param float $practicalTotal
      * @param float $theoryPassMarks
      * @param float $practicalPassMarks
+     * @param int|null $subjectId - If provided, will calculate practical pass marks from activities
+     * @param int|null $classId - Required if subjectId is provided
      * @return bool
      */
     public function validateNepalPassingCriteria(
@@ -274,11 +295,20 @@ class ResultCalculationService
         float $practicalObtained = 0,
         float $practicalTotal = 0,
         float $theoryPassMarks = 0, // 0 means use 33% default
-        float $practicalPassMarks = 0
+        float $practicalPassMarks = 0,
+        ?int $subjectId = null,
+        ?int $classId = null
     ): bool {
         // Use 33% as absolute minimum if pass marks are not set
         $tPass = $theoryPassMarks > 0 ? $theoryPassMarks : ($theoryTotal * 0.33);
-        $pPass = $practicalPassMarks > 0 ? $practicalPassMarks : ($practicalTotal * 0.33);
+        
+        // If subject and class are provided, get practical pass marks from activities
+        if ($subjectId && $classId && $practicalTotal > 0) {
+            $activitiesPassMarks = $this->getPracticalPassMarksFromActivities($subjectId, $classId);
+            $pPass = $activitiesPassMarks > 0 ? $activitiesPassMarks : ($practicalPassMarks > 0 ? $practicalPassMarks : ($practicalTotal * 0.33));
+        } else {
+            $pPass = $practicalPassMarks > 0 ? $practicalPassMarks : ($practicalTotal * 0.33);
+        }
         
         $theoryPassed = $theoryTotal > 0 ? ($theoryObtained >= $tPass) : true;
         $practicalPassed = $practicalTotal > 0 ? ($practicalObtained >= $pPass) : true;
@@ -321,7 +351,9 @@ class ResultCalculationService
                 $result->marks_practical,
                 $subject->practical_marks ?? 0,
                 $theoryPassMarks,
-                $practicalPassMarks
+                $practicalPassMarks,
+                $subject->id,
+                $classId
             );
 
             if ($passed) {
@@ -378,7 +410,9 @@ class ResultCalculationService
                 (float)$result->marks_practical,
                 (float)($subject->practical_marks ?? 0),
                 $theoryPassMarks,
-                $practicalPassMarks
+                $practicalPassMarks,
+                $subject->id,
+                $classId
             );
 
             if ($passed) {
@@ -563,7 +597,9 @@ class ResultCalculationService
                         $finalSubjectPractical,
                         $subjectFullPractical,
                         $subjectPassTheory,
-                        $subjectPassPractical
+                        $subjectPassPractical,
+                        $subjectId,
+                        $classId
                     )
                 ];
             }
