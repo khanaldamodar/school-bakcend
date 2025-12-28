@@ -295,7 +295,9 @@ Route::middleware(['tenant'])->group(function () {
     //? For Club Section
 
     Route::get('tenants/{domain}/clubs', [ClubCOntroller::class, 'index']);
+    Route::get('tenants/{domain}/clubs/all-students', [ClubCOntroller::class, 'allClubStudents']);
     Route::get('tenants/{domain}/clubs/{id}', [ClubCOntroller::class, 'show']);
+
     Route::get('tenants/{domain}/clubs/{id}/students', [ClubController::class, 'students']);
 
 
