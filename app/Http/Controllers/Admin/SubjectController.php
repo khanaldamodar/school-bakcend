@@ -55,9 +55,9 @@ class SubjectController extends Controller
 
         $request->validate([
             'name' => 'sometimes|string|max:255|unique:subjects,name,' . $id,
-            'theory_marks' => 'sometimes|integer|min:0',
-            'practical_marks' => 'sometimes|integer|min:0',
-            'theory_pass_marks' => 'sometimes|decimal|min:0',
+            'theory_marks' => 'sometimes|numeric|min:0',
+            'practical_marks' => 'sometimes|numeric|min:0',
+            'theory_pass_marks' => 'sometimes|numeric|min:0',
             'subject_code' => 'nullable|string',
             'teacher_id' => 'nullable|exists:users,id',
 
@@ -65,8 +65,8 @@ class SubjectController extends Controller
             'activities' => 'nullable|array',
             'activities.*.id' => 'nullable|exists:extra_curricular_activities,id',
             'activities.*.activity_name' => 'required|string|max:255',
-            'activities.*.full_marks' => 'nullable|integer|min:0',
-            'activities.*.pass_marks' => 'nullable|integer|min:0',
+            'activities.*.full_marks' => 'nullable|numeric|min:0',
+            'activities.*.pass_marks' => 'nullable|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($request, $subject) {
@@ -280,16 +280,16 @@ class SubjectController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:subjects,name',
             'subject_code' => 'nullable|string',
-            'theory_marks' => 'required|integer|min:0',
+            'theory_marks' => 'required|numeric|min:0',
             'theory_pass_marks' => 'required|numeric|min:0',
-            'practical_marks' => 'required|integer|min:0',
+            'practical_marks' => 'required|numeric|min:0',
             'teacher_id' => 'nullable|exists:users,id',
 
             // NESTED VALIDATION
             'activities' => 'nullable|array',
             'activities.*.activity_name' => 'required|string|max:255',
-            'activities.*.full_marks' => 'nullable|integer|min:0',
-            'activities.*.pass_marks' => 'nullable|integer|min:0',
+            'activities.*.full_marks' => 'nullable|numeric|min:0',
+            'activities.*.pass_marks' => 'nullable|numeric|min:0',
         ]);
 
         \DB::beginTransaction();
