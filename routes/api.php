@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\ResultSettingController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SMSController;
+use App\Http\Controllers\Admin\SMSSettingController;
 use App\Http\Controllers\Admin\StudentClubController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SubjectController;
@@ -217,6 +218,13 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     // ? SMS sending (Admin Only)
     Route::post('tenants/{domain}/send-sms', [SMSController::class, 'send']);
     Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class, 'sendToTeachers']);
+    Route::get('tenants/{domain}/sms-usage', [SMSController::class, 'usage']);
+
+    // SMS Settings (per academic year / events)
+    Route::get('tenants/{domain}/sms-settings', [SMSSettingController::class, 'index']);
+    Route::post('tenants/{domain}/sms-settings', [SMSSettingController::class, 'store']);
+    Route::put('tenants/{domain}/sms-settings/{id}', [SMSSettingController::class, 'update']);
+    Route::delete('tenants/{domain}/sms-settings/{id}', [SMSSettingController::class, 'destroy']);
 });
 
 // ?For the Teachers and admin
