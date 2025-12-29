@@ -1864,6 +1864,7 @@ class ResultController extends Controller
             }
 
             // Calculate and update ranks for passed students
+            $rankMap = []; // Store student_id => rank mapping
             if (!empty($studentFinalScores)) {
                 // Sort by GPA (or percentage based on result_type) descending
                 $sortKey = $resultSetting->result_type === 'percentage' ? 'percentage' : 'gpa';
@@ -1883,6 +1884,9 @@ class ResultController extends Controller
                         $rank = $count;
                     }
                     
+                    // Store rank in map for response
+                    $rankMap[$studentId] = $rank;
+                    
                     // Update rank in final_results table
                     FinalResult::where('student_id', $studentId)
                         ->where('class_id', $classId)
@@ -1893,6 +1897,12 @@ class ResultController extends Controller
                     $prevScore = $currentScore;
                 }
             }
+
+            // Update results array with ranks (only passed students get ranks)
+            $results = array_map(function($result) use ($rankMap) {
+                $result['rank'] = $result['is_passed'] ? ($rankMap[$result['student_id']] ?? null) : null;
+                return $result;
+            }, $results);
 
             DB::commit();
 
