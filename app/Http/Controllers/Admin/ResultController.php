@@ -1445,11 +1445,18 @@ class ResultController extends Controller
                 }
             }
 
-            $percentage = $classTotalMax > 0 ? round(($studentTotalMarks / $classTotalMax) * 100, 2) : 0;
-            $gpa = $calculationService->calculateGPA($studentTotalMarks, $classTotalMax);
+            // Calculate percentage based on subjects the student has results for (studentMaxMarks)
+            // NOT based on all class subjects (classTotalMax)
+            $percentage = $studentMaxMarks > 0 ? round(($studentTotalMarks / $studentMaxMarks) * 100, 2) : 0;
+            $gpa = $calculationService->calculateGPA($studentTotalMarks, $studentMaxMarks);
             
             // Check if student passed all subjects for THIS specific exam
             $isPassed = $passStatusMap[$examType][$studentId] ?? false;
+            
+            // Division should be based on actual percentage, but if student failed any subject, show "Fail"
+            $division = $isPassed 
+                ? $calculationService->getDivisionFromPercentage($percentage) 
+                : 'Fail';
 
             return [
                 'student_id' => $student->id,
@@ -1458,11 +1465,11 @@ class ResultController extends Controller
                 'student_name' => $student->first_name . ' ' . $student->last_name,
                 'roll_no' => $student->roll_number,
                 'total_marks' => $studentTotalMarks,
-                'max_marks' => $classTotalMax,
+                'max_marks' => $studentMaxMarks, // Use actual max marks of subjects student has results for
                 'percentage' => $percentage,
                 'gpa' => $gpa,
                 'grade' => $calculationService->getGradeFromPercentage($percentage),
-                'division' => $calculationService->getDivisionFromPercentage($percentage),
+                'division' => $division,
                 'is_pass' => $isPassed,
                 'subjects' => $subjects,
                 'ranks' => $isPassed 
