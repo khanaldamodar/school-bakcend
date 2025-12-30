@@ -37,8 +37,8 @@ class ExtraCurricularActivityController extends Controller
             'activities.*.subject_id' => 'required|exists:subjects,id',
             'activities.*.class_id' => 'nullable|exists:classes,id',
             'activities.*.activity_name' => 'required|string|max:255',
-            'activities.*.full_marks' => 'nullable|integer|min:0',
-            'activities.*.pass_marks' => 'nullable|integer|min:0',
+            'activities.*.full_marks' => 'nullable|numeric|min:0',
+            'activities.*.pass_marks' => 'nullable|numeric|min:0',
         ]);
 
         $activitiesData = $request->input('activities');
@@ -79,8 +79,8 @@ class ExtraCurricularActivityController extends Controller
             'subject_id' => 'required|exists:subjects,id',
             'class_id' => 'nullable|exists:classes,id',
             'activity_name' => 'required|string|max:255',
-            'full_marks' => 'nullable|integer|min:0',
-            'pass_marks' => 'nullable|integer|min:0',
+            'full_marks' => 'nullable|numeric|min:0',
+            'pass_marks' => 'nullable|numeric|min:0',
         ]);
 
         try {
