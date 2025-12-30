@@ -35,7 +35,8 @@ class Teacher extends Model
         'dob_bs',
         'joining_data_bs',
         'joining_date',
-        'is_deleted'
+        'is_deleted',
+        'disability_options',
     ];
 
     public function subjects()

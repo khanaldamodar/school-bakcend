@@ -499,8 +499,5 @@ class AnalyticsController extends Controller
             "message"=> "Single school Report",
             "records"=> $records
         ]);
-
-        
-
     }
 }

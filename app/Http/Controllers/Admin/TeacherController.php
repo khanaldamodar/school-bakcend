@@ -19,45 +19,6 @@ use App\Services\TenantLogger;
 class TeacherController extends Controller
 {
 
-
-
-    //     /**
-//  * Handle teacher image upload.
-//  *
-//  * @param \Illuminate\Http\Request $request
-//  * @param string|null $oldImagePath
-//  * @return string|null
-//  */
-// protected function handleImageUpload(Request $request, $oldImagePath = null)
-// {
-//     // If no image was sent, return the old one (for updates)
-//     if (!$request->hasFile('image')) {
-//         return $oldImagePath;
-//     }
-
-    //     $file = $request->file('image');
-
-    //     // Validate file type (safety check)
-//     $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-//     $extension = strtolower($file->getClientOriginalExtension());
-//     if (!in_array($extension, $allowedExtensions)) {
-//         throw new \Exception('Invalid image type. Only JPG, JPEG, PNG, and WEBP are allowed.');
-//     }
-
-    //     // Optional: delete old image if exists
-//     if ($oldImagePath && Storage::disk('public')->exists($oldImagePath)) {
-//         Storage::disk('public')->delete($oldImagePath);
-//     }
-
-    //     // Generate unique filename
-//     $fileName = 'teachers/' . uniqid('teacher_') . '.' . $extension;
-
-    //     // Store in /storage/app/public/teachers
-//     $path = $file->storeAs('teachers', $fileName, 'public');
-
-    //     return $path;
-// }
-
     public function index($domain)
     {
         $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles', 'user'])->get();
@@ -83,6 +44,7 @@ class TeacherController extends Controller
             'address' => 'nullable|string',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'required|boolean',
+            'disability_options' => 'required|enum:none,visual,hearing,physical,mental,other',
             'is_tribe' => 'required|boolean',
             'image' => 'nullable|file|image|max:2048',
             'grade' => 'string|required',
@@ -114,13 +76,6 @@ class TeacherController extends Controller
         DB::beginTransaction();
 
         try {
-
-
-            // $imageData = ImageUploadHelper::uploadToCloud(
-            //     $request->file('image'),
-            //     "{$tenantDomain}/teachers"
-            // );
-
             $imageData = null;
             $cloudinaryId = null;
             if ($request->hasFile('image')) {
@@ -133,9 +88,6 @@ class TeacherController extends Controller
                     $cloudinaryId = $imageData['public_id']; // save this in DB
                 }
             }
-
-
-
             //  Create user
             $user = User::create([
                 'name' => $data['name'],
@@ -155,10 +107,10 @@ class TeacherController extends Controller
                 'address' => $data['address'] ?? null,
                 'blood_group' => $data['blood_group'] ?? null,
                 'is_disabled' => $data['is_disabled'],
+                'disability_options' => $data['disability_options'],
                 'is_tribe' => $data['is_tribe'],
                 'image' => $imageData['url'] ?? null,
                 'cloudinary_id' => $cloudinaryId,
-                // 'cloudinary_id' => $uploadedImage['public_id'] ?? null,
                 'gender' => $data['gender'],
                 'grade' => $data['grade'],
                 'ethnicity' => $data['ethnicity'],
@@ -238,6 +190,7 @@ class TeacherController extends Controller
             'address' => 'nullable|string',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'required|boolean',
+            'disability_options' => 'required|enum:none,visual,hearing,physical,mental,other',
             'is_tribe' => 'required|boolean',
             'image' => 'nullable|file|image|max:2048',
             'gender' => 'required|string',
@@ -307,6 +260,7 @@ class TeacherController extends Controller
                 'address' => $data['address'] ?? null,
                 'blood_group' => $data['blood_group'] ?? null,
                 'is_disabled' => $data['is_disabled'],
+                'disability_options' => $data['disability_options'],
                 'is_tribe' => $data['is_tribe'],
                 'image' => $imageUrl,
                 'cloudinary_id' => $cloudinaryId,

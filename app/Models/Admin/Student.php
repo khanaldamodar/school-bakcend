@@ -69,7 +69,8 @@ class Student extends Model
         'cloudinary_id',
         "roll_number",
         'is_deleted',
-        'ethnicity'
+        'ethnicity',
+        'disability_options',
 
     ];
     public function class()

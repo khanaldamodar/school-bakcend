@@ -74,6 +74,7 @@ class StudentController extends Controller
             'email' => 'nullable|email',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'nullable|boolean',
+            'disability_options' => 'nullable|enum:none,visual,hearing,physical,mental,other',
             'ethnicity' => 'string|nullable',
             'is_tribe' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
@@ -129,6 +130,7 @@ class StudentController extends Controller
                 'blood_group' => $validated['blood_group'] ?? null,
                 'ethnicity' => $validated['ethnicity'] ?? null,
                 'is_disabled' => $validated['is_disabled'] ?? 0,
+                'disability_options' => $validated['disability_options'],
                 'is_tribe' => $validated['is_tribe'] ?? 0,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
@@ -139,7 +141,6 @@ class StudentController extends Controller
                 'address' => $validated['address'] ?? null,
                 'image' => $imageData['url'] ?? null,
                 'cloudinary_id' => $cloudinaryId,
-
             ]);
 
 
@@ -270,7 +271,15 @@ class StudentController extends Controller
             'class_id' => 'required|exists:classes,id',
             // roll_number removed - will be auto-generated
             'ethnicity' => 'nullable|string',
-
+            'is_disabled' => 'nullable|boolean',
+            'disability_options' => 'nullable|enum:none,visual,hearing,physical,mental,other',
+            'address' => 'nullable|string',
+            'blood_group' => 'nullable|string',
+            'is_tribe' => 'nullable|boolean',
+            'image' => 'nullable|file|image|max:2048',
+            'enrollment_year' => 'nullable|digits:4',
+            'is_transferred' => 'nullable|boolean',
+            'transferred_to' => 'nullable|string|max:255',
             // parents array validation
             'parents' => 'nullable|array',
             'parents.*.first_name' => 'required_with:parents|string|max:255',
@@ -299,6 +308,15 @@ class StudentController extends Controller
                 'email' => $validated['email'] ?? null,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
+                'ethnicity' => $validated['ethnicity'] ?? null,
+                'is_disabled' => $validated['is_disabled'] ?? 0,
+                'disability_options' => $validated['disability_options'],
+                'address' => $validated['address'] ?? null,
+                'blood_group' => $validated['blood_group'] ?? null,
+                'is_tribe' => $validated['is_tribe'] ?? 0,
+                'enrollment_year' => $validated['enrollment_year'] ?? null,
+                'is_transferred' => $validated['is_transferred'] ?? 0,
+                'transferred_to' => $validated['transferred_to'] ?? null,
                 // roll_number will be reassigned below
             ]);
 
@@ -530,6 +548,8 @@ class StudentController extends Controller
                     'ethnicity' => $getIndex('ethnicity'),
                     'address' => $getIndex('address'),
                     'is_disabled' => $getIndex('is_disabled'),
+                    'disability_options' => $getIndex('disability_options'),
+                    'blood_group' => $getIndex('blood_group'),
                     'is_tribe' => $getIndex('is_tribe'),
                     // Parent info
                     'parent_first_name' => $getIndex('parent_first_name'),
@@ -555,6 +575,8 @@ class StudentController extends Controller
                         'ethnicity' => $map['ethnicity'] !== null ? $row[$map['ethnicity']] : null,
                         'address' => $map['address'] !== null ? $row[$map['address']] : null,
                         'is_disabled' => $map['is_disabled'] !== null ? $row[$map['is_disabled']] : null,
+                        'disability_options' => $map['disability_options'] !== null ? $row[$map['disability_options']] : null,
+                        'blood_group' => $map['blood_group'] !== null ? $row[$map['blood_group']] : null,
                         'is_tribe' => $map['is_tribe'] !== null ? $row[$map['is_tribe']] : null,
 
                         'parents' => []
@@ -611,7 +633,7 @@ class StudentController extends Controller
                     'last_name' => 'nullable|string|max:255',
                     'email' => 'nullable|email|unique:students,email',
                     'phone' => 'nullable|string|max:20',
-                    'address' => 'required|string|max:20',
+                    'address' => 'required|string|max:255',
                     'class_id' => [
                         'required',
                         Rule::exists('classes', 'id'),
@@ -619,6 +641,8 @@ class StudentController extends Controller
                     // roll_number removed - will be auto-generated
                     'ethnicity' => 'nullable|string|max:50',
                     'is_disabled' => 'required|boolean',
+                    'disability_options' => 'required|enum:none,visual,hearing,physical,mental,other',
+                    'blood_group' => 'nullable|string|max:50',
                     'is_tribe' => 'required|boolean',
 
 
@@ -654,7 +678,12 @@ class StudentController extends Controller
                         'ethnicity' => $validated['ethnicity'] ?? null,
                         'address' => $validated['address'] ?? null,
                         'is_disabled' => $validated['is_disabled'] ?? null,
-                        'is_tribe' => $validated['is_tribe'] ?? null
+                        'disability_options' => $validated['disability_options'] ?? null,
+                        'blood_group' => $validated['blood_group'] ?? null,
+                        'is_tribe' => $validated['is_tribe'] ?? null,
+                        'enrollment_year' => $validated['enrollment_year'] ?? null,
+                        'is_transferred' => $validated['is_transferred'] ?? null,
+                        'transferred_to' => $validated['transferred_to'] ?? null,
                     ]);
 
                     // Create student user account
