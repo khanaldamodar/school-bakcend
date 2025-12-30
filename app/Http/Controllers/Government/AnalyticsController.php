@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Government;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Student;
 use App\Models\Admin\Teacher;
+use App\Models\Admin\FinalResult;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -412,9 +413,9 @@ class AnalyticsController extends Controller
                     ],
                     "ethnicity" => $studentEthnicity,
                     "academic" => [
-                        "passed" => \App\Models\Admin\Result::where('final_result', 'Pass')->count(),
-                        "failed" => \App\Models\Admin\Result::where('final_result', 'Fail')->count(),
-                        "average_gpa" => \App\Models\Admin\Result::avg('gpa') ?? 0,
+                        "passed" => FinalResult::whereNull('subject_id')->where('is_passed', true)->count(),
+                        "failed" => FinalResult::whereNull('subject_id')->where('is_passed', false)->count(),
+                        "average_gpa" => FinalResult::whereNull('subject_id')->avg('final_gpa') ?? 0,
                     ],
                     "teacher_stats" => [
                         "total" => $teacherStats->total,

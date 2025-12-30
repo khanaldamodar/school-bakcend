@@ -379,6 +379,42 @@ class SMSController extends Controller
     }
 
     /**
+     * List sent SMS messages for the tenant (admin view).
+     * Supports filtering by academic year, target group, and status.
+     */
+    public function messages(Request $request, $domain)
+    {
+        $request->validate([
+            'academic_year_id' => 'sometimes|integer|exists:academic_years,id',
+            'target_group' => 'sometimes|string',
+            'status' => 'sometimes|string',
+            'per_page' => 'sometimes|integer|min:1|max:100',
+        ]);
+
+        $query = SMSMessage::query()->orderByDesc('sent_at')->orderByDesc('id');
+
+        if ($request->filled('academic_year_id')) {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
+
+        if ($request->filled('target_group')) {
+            $query->where('target_group', $request->target_group);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $perPage = $request->input('per_page', 20);
+        $messages = $query->paginate($perPage);
+
+        return response()->json([
+            'status' => true,
+            'data' => $messages,
+        ], 200);
+    }
+
+    /**
      * Get SMS usage for the current tenant (school).
      *
      * Returns remaining balance from central DB and total messages sent,

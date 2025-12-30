@@ -219,6 +219,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::post('tenants/{domain}/send-sms', [SMSController::class, 'send']);
     Route::get('tenants/{domain}/send-sms-teachers', [SMSController::class, 'sendToTeachers']);
     Route::get('tenants/{domain}/sms-usage', [SMSController::class, 'usage']);
+    Route::get('tenants/{domain}/sms-messages', [SMSController::class, 'messages']);
 
     // SMS Settings (per academic year / events)
     Route::get('tenants/{domain}/sms-settings', [SMSSettingController::class, 'index']);
