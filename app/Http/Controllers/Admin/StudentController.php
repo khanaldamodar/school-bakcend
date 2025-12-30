@@ -74,7 +74,7 @@ class StudentController extends Controller
             'email' => 'nullable|email',
             'blood_group' => 'nullable|string',
             'is_disabled' => 'nullable|boolean',
-            'disability_options' => 'nullable|enum:none,visual,hearing,physical,mental,other',
+            'disability_options' => 'nullable|in:none,visual,hearing,physical,mental,other',
             'ethnicity' => 'string|nullable',
             'is_tribe' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
@@ -272,7 +272,7 @@ class StudentController extends Controller
             // roll_number removed - will be auto-generated
             'ethnicity' => 'nullable|string',
             'is_disabled' => 'nullable|boolean',
-            'disability_options' => 'nullable|enum:none,visual,hearing,physical,mental,other',
+            'disability_options' => 'nullable|in:none,visual,hearing,physical,mental,other',
             'address' => 'nullable|string',
             'blood_group' => 'nullable|string',
             'is_tribe' => 'nullable|boolean',
@@ -641,7 +641,7 @@ class StudentController extends Controller
                     // roll_number removed - will be auto-generated
                     'ethnicity' => 'nullable|string|max:50',
                     'is_disabled' => 'required|boolean',
-                    'disability_options' => 'required|enum:none,visual,hearing,physical,mental,other',
+                    'disability_options' => 'required|in:none,visual,hearing,physical,mental,other',
                     'blood_group' => 'nullable|string|max:50',
                     'is_tribe' => 'required|boolean',
 
