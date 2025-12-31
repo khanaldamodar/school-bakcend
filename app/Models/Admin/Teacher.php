@@ -96,4 +96,9 @@ public function roles()
     ->withPivot('start_date', 'end_date')
     ->withTimestamps();
 }
+
+public function attendances()
+{
+    return $this->hasMany(Attendance::class, 'teacher_id');
+}
 }

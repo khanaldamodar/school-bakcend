@@ -1,5 +1,7 @@
 <?php
 use App\Http\Controllers\Admin\AnalyticalReportController;
+use App\Http\Controllers\Admin\AttendanceController;
+
 use App\Http\Controllers\SuperAdmin\TenantController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClubController;
@@ -226,6 +228,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::post('tenants/{domain}/sms-settings', [SMSSettingController::class, 'store']);
     Route::put('tenants/{domain}/sms-settings/{id}', [SMSSettingController::class, 'update']);
     Route::delete('tenants/{domain}/sms-settings/{id}', [SMSSettingController::class, 'destroy']);
+
+    // Attendance Management
+    Route::get('tenants/{domain}/attendances', [AttendanceController::class, 'index']);
+    Route::post('tenants/{domain}/attendances', [AttendanceController::class, 'store']);
+    Route::post('tenants/{domain}/attendances/bulk', [AttendanceController::class, 'bulkStore']);
 });
 
 // ?For the Teachers and admin
@@ -298,6 +305,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
     Route::post('tenants/{domain}/posts', [PostController::class, 'store']);
     Route::put('tenants/{domain}/posts/{id}', [PostController::class, 'update']);
     Route::delete('tenants/{domain}/posts/{id}', [PostController::class, 'destroy']);
+
+    // My Attendance
+    Route::get('tenants/{domain}/my-attendance', [AttendanceController::class, 'myAttendance']);
 });
 
 
