@@ -44,6 +44,7 @@ class SchoolMemberController extends Controller
                 'gender' => 'nullable|in:male,female,other',
                 'caste' => 'nullable|in:brahmin,chhetri,janajati,dalit,muslim,other',
                 'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
+                'disability_options' => 'nullable|in:none,visual,hearing,physical,mental,other',
             ]);
 
             if ($validator->fails()) {
@@ -123,6 +124,7 @@ class SchoolMemberController extends Controller
                 'gender' => 'nullable|in:male,female,other',
                 'caste' => 'nullable|in:brahmin,chhetri,janajati,dalit,muslim,other',
                 'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
+                'disability_options' => 'nullable|in:none,visual,hearing,physical,mental,other',
             ]);
 
             if ($validator->fails()) {

@@ -26,7 +26,8 @@ class SchoolMember extends Model
         'is_disabled',
         'caste',
         'is_active',
-        'image_public_id'
+        'image_public_id',
+        'disability_options'
     ];
 
     protected $casts = [
