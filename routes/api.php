@@ -233,6 +233,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::get('tenants/{domain}/attendances', [AttendanceController::class, 'index']);
     Route::post('tenants/{domain}/attendances', [AttendanceController::class, 'store']);
     Route::post('tenants/{domain}/attendances/bulk', [AttendanceController::class, 'bulkStore']);
+    Route::get('tenants/{domain}/attendances/class/{classId}', [AttendanceController::class, 'classAttendance']);
 });
 
 // ?For the Teachers and admin

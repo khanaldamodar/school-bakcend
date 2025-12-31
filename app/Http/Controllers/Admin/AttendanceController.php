@@ -197,6 +197,46 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Get attendance for all students in a specific class for a given date.
+     * This helps in identifying who is present/absent in a class view.
+     */
+    public function classAttendance(Request $request, $domain, $classId)
+    {
+        $date = $request->get('date', now()->format('Y-m-d'));
+        
+        // Get all students in the class
+        $students = Student::where('class_id', $classId)
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'roll_number', 'image')
+            ->get();
+
+        // Get attendance records for these students on the given date
+        $attendances = Attendance::where('class_id', $classId)
+            ->whereDate('attendance_date', $date)
+            ->get()
+            ->keyBy('student_id');
+
+        // Merge attendance data into student objects
+        $data = $students->map(function ($student) use ($attendances) {
+            $attendance = $attendances->get($student->id);
+            return [
+                'student' => $student,
+                'attendance' => $attendance ?? [
+                    'status' => 'not_marked',
+                    'check_in' => null,
+                    'check_out' => null,
+                ]
+            ];
+        });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Class attendance report fetched successfully',
+            'date' => $date,
+            'data' => $data,
+        ]);
+    }
+
+    /**
      * Get attendance for the authenticated user.
      */
     public function myAttendance(Request $request, $domain)
