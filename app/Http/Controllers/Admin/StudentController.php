@@ -87,6 +87,7 @@ class StudentController extends Controller
             'transferred_to' => 'nullable|string|max:255',
             'parents' => 'required|array|min:1',
             'parents.*.first_name' => 'required|string|max:255',
+            'parents.*.middle_name' => 'nullable|string|max:255',
             'parents.*.last_name' => 'nullable|string|max:255',
             'parents.*.email' => 'nullable|email',
             'parents.*.phone' => 'nullable|string|max:20',
@@ -174,7 +175,7 @@ class StudentController extends Controller
                     $parentUser = $existingUsers[$parentData['email']];
                 } else {
                     $parentUser = User::create([
-                        'name' => $parentData['first_name'] . ' ' . ($parentData['last_name'] ?? ''),
+                        'name' => trim($parentData['first_name'] . ' ' . ($parentData['middle_name'] ?? '') . ' ' . ($parentData['last_name'] ?? '')),
                         'email' => $parentData['email'],
                         'phone' => $parentData['phone'] ?? null,
                         'password' => bcrypt($parentData['phone']), // This is still slow but unavoidable if we need new users
@@ -191,10 +192,10 @@ class StudentController extends Controller
                     $parent = ParentModel::create([
                         'email' => $parentData['email'],
                         'first_name' => $parentData['first_name'],
+                        'middle_name' => $parentData['middle_name'] ?? null,
                         'last_name' => $parentData['last_name'] ?? null,
                         'phone' => $parentData['phone'] ?? null,
                         'relation' => $parentData['relation'],
-                        'user_id' => $parentUser->id
                     ]);
                     $existingParents->put($parent->email, $parent);
                 }
@@ -265,7 +266,10 @@ class StudentController extends Controller
 
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'nullable|string|max:255',
+            'dob' => 'nullable|date',
+            'gender' => 'nullable|in:male,female,other',
             'email' => 'nullable|email|unique:students,email,' . $student->id,
             'phone' => 'nullable|string|max:20',
             'class_id' => 'required|exists:classes,id',
@@ -283,6 +287,7 @@ class StudentController extends Controller
             // parents array validation
             'parents' => 'nullable|array',
             'parents.*.first_name' => 'required_with:parents|string|max:255',
+            'parents.*.middle_name' => 'nullable|string|max:255',
             'parents.*.last_name' => 'nullable|string|max:255',
             'parents.*.email' => 'required_with:parents|email',
             'parents.*.phone' => 'nullable|string|max:20',
@@ -293,18 +298,38 @@ class StudentController extends Controller
         DB::beginTransaction();
 
         try {
+            $tenantDomain = tenant()->database;
+
+            // Handle Image Upload
+            if ($request->hasFile('image')) {
+                $imageData = ImageUploadHelper::uploadToCloud(
+                    $request->file('image'),
+                    "{$tenantDomain}/students",
+                    $student->cloudinary_id
+                );
+
+                if ($imageData) {
+                    $student->image = $imageData['url'];
+                    $student->cloudinary_id = $imageData['public_id'];
+                }
+            }
+
             // Track if class changed
             $oldClassId = $student->class_id;
             $classChanged = $oldClassId != $validated['class_id'];
             
             // Track if name changed
             $nameChanged = $student->first_name != $validated['first_name'] || 
+                          $student->middle_name != ($validated['middle_name'] ?? null) ||
                           $student->last_name != ($validated['last_name'] ?? null);
 
             // Update student
             $student->update([
                 'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
                 'last_name' => $validated['last_name'] ?? null,
+                'dob' => $validated['dob'] ?? null,
+                'gender' => $validated['gender'] ?? null,
                 'email' => $validated['email'] ?? null,
                 'phone' => $validated['phone'] ?? null,
                 'class_id' => $validated['class_id'],
@@ -320,6 +345,15 @@ class StudentController extends Controller
                 // roll_number will be reassigned below
             ]);
 
+            // Update associated user if exists
+            if ($student->user_id) {
+                User::where('id', $student->user_id)->update([
+                    'name' => trim($validated['first_name'] . ' ' . ($validated['middle_name'] ?? '') . ' ' . ($validated['last_name'] ?? '')),
+                    'email' => $validated['email'] ?? $student->email,
+                    'phone' => $validated['phone'] ?? $student->phone,
+                ]);
+            }
+
             // If parents data provided, handle update
             if (!empty($validated['parents'])) {
                 $parentIds = [];
@@ -329,15 +363,25 @@ class StudentController extends Controller
                         ['email' => $parentData['email']], // find parent by email
                         [
                             'first_name' => $parentData['first_name'],
+                            'middle_name' => $parentData['middle_name'] ?? null,
                             'last_name' => $parentData['last_name'] ?? null,
                             'phone' => $parentData['phone'] ?? null,
                             'relation' => $parentData['relation'],
-                            // Only update password if provided
-                            'password' => isset($parentData['password'])
-                                ? bcrypt($parentData['password'])
-                                : DB::raw('password'),
                         ]
                     );
+
+                    // Update parent user account if exists
+                    $parentUser = User::where('email', $parentData['email'])->first();
+                    if ($parentUser) {
+                        $parentUserUpdate = [
+                            'name' => trim($parentData['first_name'] . ' ' . ($parentData['middle_name'] ?? '') . ' ' . ($parentData['last_name'] ?? '')),
+                            'phone' => $parentData['phone'] ?? $parentUser->phone,
+                        ];
+                        if (!empty($parentData['password'])) {
+                            $parentUserUpdate['password'] = bcrypt($parentData['password']);
+                        }
+                        $parentUser->update($parentUserUpdate);
+                    }
 
                     $parentIds[] = $parent->id;
                 }
@@ -553,6 +597,7 @@ class StudentController extends Controller
                     'is_tribe' => $getIndex('is_tribe'),
                     // Parent info
                     'parent_first_name' => $getIndex('parent_first_name'),
+                    'parent_middle_name' => $getIndex('parent_middle_name'),
                     'parent_last_name' => $getIndex('parent_last_name'),
                     'parent_email' => $getIndex('parent_email'),
                     'parent_phone' => $getIndex('parent_phone'),
@@ -585,6 +630,7 @@ class StudentController extends Controller
                     if ($map['parent_email'] !== null && !empty($row[$map['parent_email']])) {
                         $studentData['parents'][] = [
                             'first_name' => $map['parent_first_name'] !== null ? $row[$map['parent_first_name']] : null,
+                            'middle_name' => $map['parent_middle_name'] !== null ? $row[$map['parent_middle_name']] : null,
                             'last_name' => $map['parent_last_name'] !== null ? $row[$map['parent_last_name']] : null,
                             'email' => $row[$map['parent_email']],
                             'phone' => $map['parent_phone'] !== null ? $row[$map['parent_phone']] : null,
@@ -649,6 +695,7 @@ class StudentController extends Controller
                     // parents array validation
                     'parents' => 'required|array|min:1',
                     'parents.*.first_name' => 'required|string|max:255',
+                    'parents.*.middle_name' => 'nullable|string|max:255',
                     'parents.*.last_name' => 'nullable|string|max:255',
                     'parents.*.email' => 'required|email',
                     'parents.*.phone' => 'nullable|string|max:20',
@@ -706,7 +753,7 @@ class StudentController extends Controller
                         $parentUser = User::firstOrCreate(
                             ['email' => $parentData['email']],
                             [
-                                'name' => $parentData['first_name'] . ' ' . ($parentData['last_name'] ?? ''),
+                                'name' => trim($parentData['first_name'] . ' ' . ($parentData['middle_name'] ?? '') . ' ' . ($parentData['last_name'] ?? '')),
                                 'email' => $parentData['email'],
                                 'phone' => $parentData['phone'] ?? null,
                                 'password' => bcrypt($parentData['phone']),
@@ -718,10 +765,10 @@ class StudentController extends Controller
                             ['email' => $parentData['email']],
                             [
                                 'first_name' => $parentData['first_name'],
+                                'middle_name' => $parentData['middle_name'] ?? null,
                                 'last_name' => $parentData['last_name'] ?? null,
                                 'phone' => $parentData['phone'] ?? null,
                                 'relation' => $parentData['relation'],
-                                'user_id' => $parentUser->id,
                             ]
                         );
 
