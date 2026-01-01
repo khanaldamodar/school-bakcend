@@ -84,9 +84,9 @@ class IndividualSchoolTeachers extends Controller
         
             return response()->json([
                 "status" => true,
-                "message" => "No Teachers Found!!",
+                "message" => "Teacher Found Successfully",
                 "teacher"=> $teacher,
-            ], 404);
+            ], 200);
         
 
     }

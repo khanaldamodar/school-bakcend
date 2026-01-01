@@ -218,4 +218,5 @@ class ClassController extends Controller
             'message' => 'Class deleted successfully'
         ]);
     }
+        
 }
