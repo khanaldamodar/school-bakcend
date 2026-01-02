@@ -1002,8 +1002,7 @@ class ResultController extends Controller
                 'student_id' => $studentId,
                 'composite_id' => $studentId . '_' . $examType, // Unique key for frontend
                 'exam_type' => $examType,
-                'student_name' => $student->first_name . ' ' . $student->last_name,
-                'roll_no' => $student->roll_number,
+
                 'total_marks' => $studentTotalMarks,
                 'max_marks' => $studentMaxMarks,
                 'percentage' => $percentage,
