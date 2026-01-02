@@ -317,11 +317,11 @@ class StudentController extends Controller
             // Track if class changed
             $oldClassId = $student->class_id;
             $classChanged = $oldClassId != $validated['class_id'];
-            
+
             // Track if name changed
-            $nameChanged = $student->first_name != $validated['first_name'] || 
-                          $student->middle_name != ($validated['middle_name'] ?? null) ||
-                          $student->last_name != ($validated['last_name'] ?? null);
+            $nameChanged = $student->first_name != $validated['first_name'] ||
+                $student->middle_name != ($validated['middle_name'] ?? null) ||
+                $student->last_name != ($validated['last_name'] ?? null);
 
             // Update student
             $student->update([
@@ -394,11 +394,11 @@ class StudentController extends Controller
             if ($nameChanged || $classChanged) {
                 // Reassign roll numbers in the new class
                 $this->reassignRollNumbers($validated['class_id']);
-                
+
                 // If class changed, also reassign roll numbers in the old class
                 if ($classChanged) {
                     $this->reassignRollNumbers($oldClassId);
-                    
+
                     // Mark old class history as promoted
                     StudentClassHistory::where('student_id', $student->id)
                         ->where('class_id', $oldClassId)
@@ -408,10 +408,10 @@ class StudentController extends Controller
                             'promoted_date' => now(),
                             'remarks' => 'Promoted to ' . $student->class->name
                         ]);
-                    
+
                     // Reload student to get updated roll_number
                     $student->refresh();
-                    
+
                     // Create new class history record
                     $this->createClassHistory(
                         $student->id,
@@ -452,7 +452,7 @@ class StudentController extends Controller
     {
         $student = Student::findOrFail($id);
         $classId = $student->class_id; // Store class_id before deletion
-        
+
         // Set is_deleted to true for student
         $suffix = '_deleted_' . time();
         $student->update([
@@ -795,12 +795,12 @@ class StudentController extends Controller
             }
 
             // Reassign roll numbers for all affected classes
-            $affectedClasses = Student::whereIn('id', function($query) use ($students) {
+            $affectedClasses = Student::whereIn('id', function ($query) use ($students) {
                 // Get all class IDs from the imported students
                 $classIds = collect($students)->pluck('class_id')->unique();
                 $query->select('class_id')
-                      ->from('students')
-                      ->whereIn('class_id', $classIds);
+                    ->from('students')
+                    ->whereIn('class_id', $classIds);
             })->pluck('class_id')->unique();
 
             foreach ($affectedClasses as $classId) {
@@ -841,43 +841,43 @@ class StudentController extends Controller
     {
         // Get all students in the class (excluding current student if updating)
         $query = Student::where('class_id', $classId);
-        
+
         if ($excludeStudentId) {
             $query->where('id', '!=', $excludeStudentId);
         }
-        
+
         $students = $query->get();
-        
+
         // Create full name for the new student
         $newStudentFullName = trim(
-            ($firstName ?? '') . ' ' . 
-            ($middleName ?? '') . ' ' . 
+            ($firstName ?? '') . ' ' .
+            ($middleName ?? '') . ' ' .
             ($lastName ?? '')
         );
-        
+
         // Add the new student to the list for sorting
         $allStudents = $students->map(function ($student) {
             return [
                 'id' => $student->id,
                 'full_name' => trim(
-                    ($student->first_name ?? '') . ' ' . 
-                    ($student->middle_name ?? '') . ' ' . 
+                    ($student->first_name ?? '') . ' ' .
+                    ($student->middle_name ?? '') . ' ' .
                     ($student->last_name ?? '')
                 )
             ];
         })->toArray();
-        
+
         // Add new student
         $allStudents[] = [
             'id' => 'new',
             'full_name' => $newStudentFullName
         ];
-        
+
         // Sort alphabetically by full name
         usort($allStudents, function ($a, $b) {
             return strcasecmp($a['full_name'], $b['full_name']);
         });
-        
+
         // Find position of new student (1-indexed)
         $position = 1;
         foreach ($allStudents as $index => $student) {
@@ -886,7 +886,7 @@ class StudentController extends Controller
                 break;
             }
         }
-        
+
         return $position;
     }
 
@@ -905,8 +905,8 @@ class StudentController extends Controller
                 return [
                     'id' => $student->id,
                     'full_name' => trim(
-                        ($student->first_name ?? '') . ' ' . 
-                        ($student->middle_name ?? '') . ' ' . 
+                        ($student->first_name ?? '') . ' ' .
+                        ($student->middle_name ?? '') . ' ' .
                         ($student->last_name ?? '')
                     )
                 ];
@@ -915,7 +915,7 @@ class StudentController extends Controller
                 return strtolower($student['full_name']);
             })
             ->values();
-        
+
         // Update roll numbers
         foreach ($students as $index => $student) {
             Student::where('id', $student['id'])
@@ -1070,7 +1070,7 @@ class StudentController extends Controller
     private function createClassHistory($studentId, $classId, $rollNumber, $status = 'active', $remarks = null)
     {
         $currentAcademicYear = AcademicYear::current();
-        
+
         StudentClassHistory::create([
             'student_id' => $studentId,
             'class_id' => $classId,
