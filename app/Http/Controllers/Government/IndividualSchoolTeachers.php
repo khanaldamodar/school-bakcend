@@ -41,7 +41,7 @@ class IndividualSchoolTeachers extends Controller
             ], 404);
         }
 
-        $teachers = Teacher::all();
+        $teachers = Teacher::with('classTeacherOf')->get();
 
         if ($teachers->isEmpty()) {
             return response()->json([

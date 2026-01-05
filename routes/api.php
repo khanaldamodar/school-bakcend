@@ -395,6 +395,10 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     // Get all the Teachers of thee Nagarpalica
     Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
     
+    // Aggregated Teachers and Students by Local Unit
+    Route::get('/gov/all-data/{localUnit}', [\App\Http\Controllers\Government\LocalUnitDataController::class, 'getAllTeachersAndStudents']);
+
+    
     Route::post('/gov/analytics/ethnicity', [AnalyticsController::class, 'ethnicity']);
     Route::post('/gov/analytics/comprehensive', [AnalyticsController::class, 'comprehensive']);
 

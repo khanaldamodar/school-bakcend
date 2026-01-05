@@ -30,8 +30,8 @@ class AllTeachersController extends Controller
         
         tenancy()->initialize($school);
 
-        // Fetch teachers
-        $teachers = Teacher::all();
+            // Fetch teachers with class assignment info
+            $teachers = Teacher::with('classTeacherOf')->get();
 
         // Count teachers
         $teacherCount = $teachers->count();
@@ -48,7 +48,7 @@ class AllTeachersController extends Controller
 
     return response()->json([
         'status' => true,
-        'message' => "Schools fetched successfully",
+            'message' => "Teachers fetched successfully",
         'total_schools' => $schools->count(),
         'data' => $data
     ], 200);
