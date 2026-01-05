@@ -47,7 +47,7 @@ class TeacherController extends Controller
             'disability_options' => 'required|in:none,visual,hearing,physical,mental,other',
             'is_tribe' => 'required|boolean',
             'image' => 'nullable|file|image|max:2048',
-            'grade' => 'string|required',
+            'grade' => 'string|nullable',
             'gender' => 'required|string',
             'dob' => 'required|date',
             'nationality' => 'required|string',
