@@ -96,7 +96,8 @@ class IndividualSchoolStudents extends Controller
         $query = Result::with([
             'subject:id,name,theory_marks,practical_marks,theory_pass_marks',
             'class:id,name',
-            'teacher:id,name,class_teacher_id', // Fetch teacher details
+            'teacher:id,name', // Fetch teacher details
+            'teacher.classTeacherOf:id,name,class_teacher_id',
             'academicYear:id,name'
         ])->where('student_id', $student->id);
 
