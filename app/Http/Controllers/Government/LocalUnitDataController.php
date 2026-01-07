@@ -70,6 +70,13 @@ class LocalUnitDataController extends Controller
             ];
         }
 
+         return response()->json([
+            'status' => true,
+            'message' => "All teachers and students fetched successfully for local unit: " . $localUnit,
+            'total_schools' => $schools->count(),
+            'data' => $data
+        ], 200);
+
 
     }
 

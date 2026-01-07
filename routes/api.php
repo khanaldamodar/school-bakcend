@@ -56,11 +56,11 @@ Route::prefix('superadmin/school')->middleware(['auth:sanctum'])->group(function
     Route::put('/{tenant}', [TenantController::class, 'update']); // Update school
     Route::patch('/{tenant}', [TenantController::class, 'update']); // Partial update
     Route::delete('/{tenant}', [TenantController::class, 'destroy']); // Delete school
-    
+
     // SMS Balance routes
     Route::get('/{tenant}/sms-balance', [SuperAdminSmsController::class, 'getBalance']);
     Route::post('/{tenant}/add-sms', [SuperAdminSmsController::class, 'addBalance']);
-    
+
     // School Data routes (Deleted records)
     Route::get('/{tenant}/deleted-students', [SchoolDataController::class, 'getDeletedStudents']);
     Route::get('/{tenant}/deleted-teachers', [SchoolDataController::class, 'getDeletedTeachers']);
@@ -74,7 +74,7 @@ Route::prefix('superadmin/logs')->middleware(['auth:sanctum'])->group(function (
 
 //? Local Bodies for Super Admin
 Route::prefix('superadmin/local-bodies')->middleware(['auth:sanctum'])->group(function () {
-    Route::get('/', function() {
+    Route::get('/', function () {
         return response()->json([
             'status' => true,
             'data' => \App\Models\LocalBody::all()
@@ -273,7 +273,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
     // ? To generate final result
     Route::post('tenants/{domain}/classes/{classId}/generate-final', [ResultController::class, 'generateClassFinalResult']);
-    
+
     // ? To get final results
     Route::get('tenants/{domain}/classes/{classId}/final-results', [ResultController::class, 'getClassFinalResults']);
     Route::get('tenants/{domain}/students/{studentId}/final-result', [ResultController::class, 'getStudentFinalResult']);
@@ -394,12 +394,12 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     Route::post('/gov/analytics/singleschool', [AnalyticsController::class, 'singleSchoolStudentFilter']);
     // Get all the Teachers of thee Nagarpalica
     Route::get('/gov/teachers/{localUnit}', [AllTeachersController::class, "getAllTeachers"]);
-    
+
     // Aggregated Teachers and Students by Local Unit
     Route::get('/gov/all-data/{localUnit}', [\App\Http\Controllers\Government\LocalUnitDataController::class, 'getAllTeachersAndStudents']);
     Route::get('/gov/all-students/{localUnit}', [\App\Http\Controllers\Government\LocalUnitDataController::class, 'getAllStudents']);
 
-    
+
     Route::post('/gov/analytics/ethnicity', [AnalyticsController::class, 'ethnicity']);
     Route::post('/gov/analytics/comprehensive', [AnalyticsController::class, 'comprehensive']);
 
