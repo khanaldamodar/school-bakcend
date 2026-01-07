@@ -20,13 +20,13 @@ class LocalUnitDataController extends Controller
         $data = [];
 
         foreach ($schools as $school) {
-            
+
             // Switch tenant database
             tenancy()->initialize($school);
 
             // Fetch teachers with class assignment info
             $teachers = Teacher::with('classTeacherOf')->get();
-            
+
             // Fetch students with their class info
             $students = Student::with('class')->get();
 
@@ -47,4 +47,32 @@ class LocalUnitDataController extends Controller
             'data' => $data
         ], 200);
     }
+
+    public function getAllStudents($localUnit)
+    {
+        $schools = Tenant::where('local_unit', $localUnit)->get();
+        $data = [];
+
+        foreach ($schools as $school) {
+
+            // Switch tenant database
+            tenancy()->initialize($school);
+
+          
+            // Fetch students with their class info
+            $students = Student::with('class')->get();
+
+            // Append result for this school
+            $data[] = [
+                "school" => $school,
+                "student_count" => $students->count(),
+                "students" => $students
+            ];
+        }
+
+
+    }
+
+
+
 }

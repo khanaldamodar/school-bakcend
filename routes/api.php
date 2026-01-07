@@ -397,6 +397,7 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
     
     // Aggregated Teachers and Students by Local Unit
     Route::get('/gov/all-data/{localUnit}', [\App\Http\Controllers\Government\LocalUnitDataController::class, 'getAllTeachersAndStudents']);
+    Route::get('/gov/all-students/{localUnit}', [\App\Http\Controllers\Government\LocalUnitDataController::class, 'getAllStudents']);
 
     
     Route::post('/gov/analytics/ethnicity', [AnalyticsController::class, 'ethnicity']);
