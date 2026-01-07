@@ -439,21 +439,47 @@ class ResultController extends Controller
     }
 
 
-    public function studentResult($domain)
+    public function studentResult(Request $request, $domain)
     {
         // get the logged in user
         $user = auth()->user();
+        $academicYearId = $request->query('academic_year_id');
+        $studentId = $request->query('student_id');
 
         try {
-            // find student based on user_id
-            $student = Student::with('class:id,name')
-                ->where('user_id', $user->id)
-                ->firstOrFail();
+            // find student based on role and provided ID
+            if ($user->role === 'student') {
+                $student = Student::with('class:id,name')
+                    ->where('user_id', $user->id)
+                    ->firstOrFail();
+            } elseif ($user->role === 'parent') {
+                // If the user is a parent, they might have multiple children
+                // We favor student_id from query or the first child found
+                $query = Student::with('class:id,name')
+                    ->whereHas('parents', function ($q) use ($user) {
+                        $q->where('email', $user->email);
+                    });
+
+                if ($studentId) {
+                    $student = $query->where('id', $studentId)->firstOrFail();
+                } else {
+                    $student = $query->firstOrFail();
+                }
+            } else {
+                // Admin or Teacher viewing a specific student's result
+                if (!$studentId) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'student_id is required for admins and teachers.'
+                    ], 400);
+                }
+                $student = Student::with('class:id,name')->findOrFail($studentId);
+            }
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Student record not found for the logged in user.'
+                'message' => 'Student record not found or unauthorized access.'
             ], 404);
         }
 
@@ -461,25 +487,35 @@ class ResultController extends Controller
         $calculationService = new ResultCalculationService();
 
         // fetch all results including past classes
-        $results = Result::with([
+        $query = Result::with([
             'subject:id,name,theory_marks,practical_marks,theory_pass_marks,practical_pass_marks',
             'activities.activity:id,activity_name,full_marks',
-            'academicYear'
+            'academicYear',
+            'class:id,name'
         ])
-            ->where('student_id', $student->id)
-            ->get()
+            ->where('student_id', $student->id);
+
+        // Apply academic year filter if provided
+        if ($academicYearId) {
+            $query->where('academic_year_id', $academicYearId);
+        }
+
+        $results = $query->get()
             ->groupBy(['academic_year_id', 'class_id', 'exam_type']);
 
         $formattedResults = [];
         $overallMetrics = []; // store overall metrics per exam
 
-        foreach ($results as $academicYearId => $classes) {
-            $academicYear = AcademicYear::find($academicYearId);
+        foreach ($results as $yearId => $classes) {
+            $academicYear = AcademicYear::find($yearId);
             $academicYearName = $academicYear ? $academicYear->name : 'Unknown Year';
-            $resultSetting = ResultSetting::where('academic_year_id', $academicYearId)->first();
+            $resultSetting = ResultSetting::where('academic_year_id', $yearId)->first();
 
             foreach ($classes as $classId => $exams) {
-                $className = SchoolClass::find($classId)->name ?? 'Unknown Class';
+                // Get class name from eager loaded relationship in the first available result
+                $firstExam = collect($exams)->first();
+                $className = $firstExam ? ($firstExam->first()->class->name ?? 'Unknown Class') : 'Unknown Class';
+                
                 $key = "{$academicYearName} - {$className}";
 
                 foreach ($exams as $examType => $subjects) {
@@ -551,7 +587,7 @@ class ResultController extends Controller
             'data' => [
                 'student' => [
                     'name' => $student->first_name . ' ' . $student->last_name,
-                    'current_class' => $student->class->name,
+                    'current_class' => optional($student->class)->name ?? 'N/A',
                     'roll_number' => $student->roll_number,
                 ],
                 'results' => $formattedResults,
