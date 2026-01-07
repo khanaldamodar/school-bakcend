@@ -826,11 +826,16 @@ class ResultController extends Controller
             return $b['total_marks'] <=> $a['total_marks'];
         });
 
-        // Assign rank
-        foreach ($ledger as $index => &$student) {
-            $student['rank'] = $index + 1;
+        // Assign rank (Dense Ranking)
+    $rank = 0;
+    $prevMarks = null;
+    foreach ($ledger as &$student) {
+        if ($prevMarks === null || $student['total_marks'] < $prevMarks) {
+            $rank++;
         }
-
+        $student['rank'] = $rank;
+        $prevMarks = $student['total_marks'];
+    }
         return response()->json([
             'status' => true,
             'message' => 'Ledger fetched successfully for class ' . $classId,
@@ -1018,19 +1023,17 @@ class ResultController extends Controller
                     return $items->avg('gpa');
                 })->sortDesc();
 
-                $r = 1;
-                $c = 0;
-                $prevScore = null;
+                $r = 0;
+                $prevS = null;
                 foreach ($studentScores as $sid => $score) {
-                    $c++;
-                    if ($prevScore !== null && $score < $prevScore) {
-                        $r = $c;
+                    if ($prevS === null || $score < $prevS) {
+                        $r++;
                     }
                     if ($sid == $studentId) {
                         $rank = $r;
                         break;
                     }
-                    $prevScore = $score;
+                    $prevS = $score;
                 }
             }
 
@@ -1488,15 +1491,13 @@ class ResultController extends Controller
                     return $items->avg('gpa');
                 })->sortDesc();
 
-            $rank = 1;
+            $rank = 0;
             $ranks = [];
             $prevScore = null;
-            $count = 0;
 
             foreach ($studentScores as $studentId => $score) {
-                $count++;
                 if ($prevScore !== $score) {
-                    $rank = $count;
+                    $rank++;
                 }
                 $ranks[$studentId] = $rank;
                 $prevScore = $score;
@@ -2054,16 +2055,14 @@ class ResultController extends Controller
                     return $b[$sortKey] <=> $a[$sortKey];
                 });
 
-                $rank = 1;
+                $rank = 0;
                 $prevScore = null;
-                $count = 0;
 
                 foreach ($studentFinalScores as $studentId => $scores) {
-                    $count++;
                     $currentScore = $scores[$sortKey];
 
                     if ($prevScore !== $currentScore) {
-                        $rank = $count;
+                        $rank++;
                     }
 
                     // Store rank in map for response
