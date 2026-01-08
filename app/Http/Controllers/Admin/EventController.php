@@ -15,7 +15,7 @@ class EventController extends Controller
      */
     public function index($domain)
     {
-        $events = Event::all();
+        $events = Event::with('eventType')->latest()->get();
 
         if ($events->isEmpty()) {
             return response()->json([
@@ -26,7 +26,7 @@ class EventController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => "Events Fetced Successfully",
+            'message' => "Events fetched successfully",
             'events' => $events
         ], 200);
     }
@@ -40,6 +40,7 @@ class EventController extends Controller
             'title' => 'required|string|max:255',
             'date' => 'required|date',
             'time' => 'nullable|date_format:H:i', // e.g., 14:30
+            'event_type_id' => 'nullable|exists:event_types,id',
             'type' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'location' => 'nullable|string|max:255',
@@ -66,7 +67,7 @@ class EventController extends Controller
         return response()->json([
             'status' => true,
             'message' => "Event Created SuccessFully",
-            'event' => $event
+            'event' => $event->load('eventType')
         ], 222);
 
     }
@@ -76,22 +77,20 @@ class EventController extends Controller
      */
     public function show($domain, string $id)
     {
-        try {
-            $event = Event::findOrFail($id);
+        $event = Event::with('eventType')->find($id);
 
-            return response()->json([
-                'status' => true,
-                'message' => 'Event found successfully',
-                'data' => $event
-            ], 200);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        if (!$event) {
             return response()->json([
                 'status' => false,
-                'message' => 'No data available with this id',
-                'error' => $e->getMessage(),
+                'message' => 'No event found with this id'
             ], 404);
         }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Event found successfully',
+            'data' => $event
+        ], 200);
     }
 
 
@@ -103,8 +102,8 @@ class EventController extends Controller
         $validate = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'date' => 'required|date',
-            'time' => 'nullable|date_format:H:i', // e.g., 14:30
-            'type' => 'nullable|string|max:100',
+            'time' => 'nullable|date_format:H:i',
+            'event_type_id' => 'nullable|exists:event_types,id',
             'description' => 'nullable|string',
             'location' => 'nullable|string|max:255',
         ]);
@@ -117,8 +116,6 @@ class EventController extends Controller
             ], 422);
         }
 
-        $validatedEvent = $validate->validated();
-
         $event = Event::find($id);
 
         if (!$event) {
@@ -128,7 +125,7 @@ class EventController extends Controller
             ], 404);
         }
 
-        $event->update($validatedEvent);
+        $event->update($validate->validated());
 
         TenantLogger::logUpdate('events', "Event updated: {$event->title}", [
             'id' => $event->id,
@@ -137,8 +134,8 @@ class EventController extends Controller
 
         return response()->json([
             'status' => true,
-            'message' => "Event Updated Successfully",
-            'event' => $event
+            'message' => "Event updated successfully",
+            'event' => $event->load('eventType')
         ], 200);
     }
 

@@ -2,6 +2,7 @@
 use App\Http\Controllers\Admin\AnalyticalReportController;
 use App\Http\Controllers\Admin\AttendanceController;
 
+use App\Http\Controllers\Admin\EventTypeController;
 use App\Http\Controllers\SuperAdmin\TenantController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClubController;
@@ -195,6 +196,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::get('tenants/{domain}/admin/dashboard/stats', [DashboardController::class, 'stats']);
 
     // To manage the Events
+
+    Route::apiResource('tenants/{domain}/events-type', EventTypeController::class);
     Route::apiResource('tenants/{domain}/events', EventController::class)->except('index', 'show');
 
 
