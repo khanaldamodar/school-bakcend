@@ -348,8 +348,8 @@ class ResultCalculationService
 
         foreach ($results as $result) {
             $subject = $result->subject;
-            $theoryPassMarks = $subject->theory_pass_marks ?? 33;
-            $practicalPassMarks = $subject->practical_pass_marks ?? 33;
+            $theoryPassMarks = (float)($subject->theory_pass_marks ?? 0);
+            $practicalPassMarks = (float)($subject->practical_pass_marks ?? 0);
             
             $passed = $this->validateNepalPassingCriteria(
                 $result->marks_theory,
@@ -407,8 +407,8 @@ class ResultCalculationService
 
         foreach ($results as $result) {
             $subject = $result->subject;
-            $theoryPassMarks = (float)($subject->theory_pass_marks ?? 33);
-            $practicalPassMarks = (float)($subject->practical_pass_marks ?? 33);
+            $theoryPassMarks = (float)($subject->theory_pass_marks ?? 0);
+            $practicalPassMarks = (float)($subject->practical_pass_marks ?? 0);
             
             $passed = $this->validateNepalPassingCriteria(
                 (float)$result->marks_theory,
@@ -569,11 +569,15 @@ class ResultCalculationService
                     $termWeightSum += $weight;
 
                     // Set subject constants (theory/practical marks)
-                    if ($subjectFullTheory === 0) {
-                        $subjectFullTheory = $result->subject->theory_marks ?? 0;
-                        $subjectPassTheory = $result->subject->theory_pass_marks ?? 0;
-                        $subjectFullPractical = $result->subject->practical_marks ?? 0;
-                        $subjectPassPractical = $result->subject->practical_pass_marks ?? 0;
+                    if ($subjectName === '') {
+                        $subjectName = $result->subject->name;
+                        $subjectFullTheory = (float)($result->subject->theory_marks ?? 0);
+                        $subjectPassTheory = (float)($result->subject->theory_pass_marks ?? 0);
+                        $subjectFullPractical = (float)($result->subject->practical_marks ?? 0);
+                        
+                        // Fix: Calculate practical pass marks from activities for final result
+                        $activitiesPassSum = $this->getPracticalPassMarksFromActivities($subjectId, $classId);
+                        $subjectPassPractical = $activitiesPassSum > 0 ? $activitiesPassSum : (float)($result->subject->practical_pass_marks ?? 0);
                     }
                 }
             }
