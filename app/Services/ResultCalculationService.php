@@ -550,6 +550,7 @@ class ResultCalculationService
             $subjectFullPractical = 0;
             $subjectPassPractical = 0;
 
+            $passedInFinalTerm = false;
             foreach ($terms as $term) {
                 $result = Result::with('subject.activities')
                     ->where('student_id', $studentId)
@@ -567,6 +568,20 @@ class ResultCalculationService
                     $weightedSubjectPractical += ($result->marks_practical * $weight);
                     $weightedSubjectTheory += ($result->marks_theory * $weight);
                     $termWeightSum += $weight;
+
+                    // Check if passed in final term
+                    if ($this->isLastTerm($term->id, $resultSetting)) {
+                        $passedInFinalTerm = $this->validateNepalPassingCriteria(
+                            (float)$result->marks_theory,
+                            (float)($result->subject->theory_marks ?? 0),
+                            (float)$result->marks_practical,
+                            (float)($result->subject->practical_marks ?? 0),
+                            (float)($result->subject->theory_pass_marks ?? 0),
+                            (float)($result->subject->practical_pass_marks ?? 0),
+                            $subjectId,
+                            $classId
+                        );
+                    }
 
                     // Set subject constants (theory/practical marks)
                     if ($subjectFullTheory === 0) {
@@ -609,7 +624,7 @@ class ResultCalculationService
                         $subjectPassPractical,
                         $subjectId,
                         $classId
-                    )
+                    ) || $passedInFinalTerm
                 ];
             }
         }
@@ -639,8 +654,19 @@ class ResultCalculationService
         $finalGPA = $totalWeight > 0 ? round($overallWeightedGPA / $totalWeight, 2) : 0;
         $finalPercentage = $totalWeight > 0 ? round($overallWeightedPercentage / $totalWeight, 2) : 0;
 
-        // Check Nepal passing criteria for all subjects
-        $nepalResult = $this->checkStudentPassedAllSubjects($studentId, $classId, $academicYearId);
+        // Check Nepal passing criteria for all subjects based on subject results
+        $allPassed = true;
+        $passedSubjectsNames = [];
+        $failedSubjectsNames = [];
+
+        foreach ($subjectResults as $sr) {
+            if ($sr['passed_nepal_criteria']) {
+                $passedSubjectsNames[] = $sr['subject_name'];
+            } else {
+                $failedSubjectsNames[] = $sr['subject_name'];
+                $allPassed = false;
+            }
+        }
 
         return [
             'final_result' => ($resultSetting->result_type === 'percentage') ? $finalPercentage : $finalGPA,
@@ -648,9 +674,9 @@ class ResultCalculationService
             'final_percentage' => $finalPercentage,
             'final_grade' => $this->getGradeFromGPA($finalGPA),
             'final_division' => $this->getDivisionFromPercentage($finalPercentage),
-            'nepal_passed_all_subjects' => $nepalResult['all_passed'],
-            'nepal_passed_subjects' => $nepalResult['passed_subjects'],
-            'nepal_failed_subjects' => $nepalResult['failed_subjects'],
+            'nepal_passed_all_subjects' => $allPassed,
+            'nepal_passed_subjects' => $passedSubjectsNames,
+            'nepal_failed_subjects' => $failedSubjectsNames,
             'result_type' => $resultSetting->result_type,
             'calculation_method' => 'weighted',
             'subject_results' => array_values($subjectResults),
