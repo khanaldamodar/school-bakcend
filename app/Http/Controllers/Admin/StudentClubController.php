@@ -74,7 +74,7 @@ class StudentClubController extends Controller
             'position' => 'nullable|string|max:255'
         ]);
 
-        // 🔴 Custom validation rule
+        // Custom validation rule
         $validator->after(function ($validator) use ($request, $studentClub) {
 
             if (

@@ -3,6 +3,7 @@ use App\Http\Controllers\Admin\AnalyticalReportController;
 use App\Http\Controllers\Admin\AttendanceController;
 
 use App\Http\Controllers\Admin\EventTypeController;
+use App\Http\Controllers\Admin\VoiceController;
 use App\Http\Controllers\SuperAdmin\TenantController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClubController;
@@ -192,8 +193,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 
 
-    // To show the counts in admin panel
-    Route::get('tenants/{domain}/admin/dashboard/stats', [DashboardController::class, 'stats']);
+
 
     // To manage the Events
 
@@ -237,6 +237,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::post('tenants/{domain}/attendances', [AttendanceController::class, 'store']);
     Route::post('tenants/{domain}/attendances/bulk', [AttendanceController::class, 'bulkStore']);
     Route::get('tenants/{domain}/attendances/class/{classId}', [AttendanceController::class, 'classAttendance']);
+
+
+
+    // Create Voices for admin
+    Route::apiResource('tenants/{domain}/voices', VoiceController::class);
 });
 
 // ?For the Teachers and admin
@@ -318,9 +323,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
 
+    //? To show the counts in admin panel
+    Route::get('tenants/{domain}/admin/dashboard/stats', [DashboardController::class, 'stats']);
 
     //? For Club Section
-
     Route::get('tenants/{domain}/clubs', [ClubCOntroller::class, 'index']);
     Route::get('tenants/{domain}/clubs/all-students', [ClubCOntroller::class, 'allClubStudents']);
     Route::get('tenants/{domain}/clubs/{id}', [ClubCOntroller::class, 'show']);
