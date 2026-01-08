@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Voice;
 use Illuminate\Http\Request;
 
 class VoiceController extends Controller
