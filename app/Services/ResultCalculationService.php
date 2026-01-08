@@ -573,7 +573,10 @@ class ResultCalculationService
                         $subjectFullTheory = $result->subject->theory_marks ?? 0;
                         $subjectPassTheory = $result->subject->theory_pass_marks ?? 0;
                         $subjectFullPractical = $result->subject->practical_marks ?? 0;
-                        $subjectPassPractical = $result->subject->practical_pass_marks ?? 0;
+                        
+                        // Sum of activities pass marks
+                        $activitiesPassSum = $this->getPracticalPassMarksFromActivities($subjectId, $classId);
+                        $subjectPassPractical = $activitiesPassSum > 0 ? $activitiesPassSum : ($result->subject->practical_pass_marks ?? 0);
                     }
                 }
             }

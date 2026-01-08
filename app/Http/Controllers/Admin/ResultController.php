@@ -2230,7 +2230,7 @@ class ResultController extends Controller
                     'theory_full_marks' => $sr->subject->theory_marks ?? 0,
                     'practical_full_marks' => $sr->subject->practical_marks ?? 0,
                     'theory_pass_marks' => $sr->subject->theory_pass_marks ?? 0,
-                    'practical_pass_marks' => $sr->subject->practical_pass_marks ?? 0,
+                    'practical_pass_marks' => $calculationService->getPracticalPassMarksFromActivities($sr->subject_id, $finalResult->class_id) ?: ($sr->subject->practical_pass_marks ?? 0),
                     'final_theory_marks' => $sr->final_theory_marks,
                     'final_practical_marks' => $sr->final_practical_marks,
                     'final_gpa' => $sr->final_gpa,
