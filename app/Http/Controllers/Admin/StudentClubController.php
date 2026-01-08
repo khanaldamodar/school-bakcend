@@ -17,6 +17,23 @@ class StudentClubController extends Controller
             'position' => 'nullable|string|max:255'
         ]);
 
+        $validator->after(function ($validator) use ($request) {
+            // Allow multiple members
+            if ($request->position && strtolower($request->position) !== 'member') {
+
+                $exists = StudentClub::where('club_id', $request->club_id)
+                    ->where('position', $request->position)
+                    ->exists();
+
+                if ($exists) {
+                    $validator->errors()->add(
+                        'position',
+                        "{$request->position} position already exists for this club."
+                    );
+                }
+            }
+        });
+
         if ($validator->fails()) {
             return response()->json([
                 'status' => false,
@@ -34,6 +51,7 @@ class StudentClubController extends Controller
     }
 
 
+
     public function update(Request $request, string $domain, string $id)
     {
         $studentClub = StudentClub::find($id);
@@ -45,9 +63,37 @@ class StudentClubController extends Controller
             ], 404);
         }
 
+        // Normalize position (optional but recommended)
+        if ($request->has('position')) {
+            $request->merge([
+                'position' => ucfirst(strtolower($request->position))
+            ]);
+        }
+
         $validator = Validator::make($request->all(), [
             'position' => 'nullable|string|max:255'
         ]);
+
+        // 🔴 Custom validation rule
+        $validator->after(function ($validator) use ($request, $studentClub) {
+
+            if (
+                $request->position &&
+                strtolower($request->position) !== 'member'
+            ) {
+                $exists = StudentClub::where('club_id', $studentClub->club_id)
+                    ->where('position', $request->position)
+                    ->where('id', '!=', $studentClub->id) // exclude self
+                    ->exists();
+
+                if ($exists) {
+                    $validator->errors()->add(
+                        'position',
+                        "{$request->position} position already exists for this club."
+                    );
+                }
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json([
@@ -64,6 +110,7 @@ class StudentClubController extends Controller
             'data' => $studentClub
         ]);
     }
+
 
 
     public function destroy(string $domain, string $id)
