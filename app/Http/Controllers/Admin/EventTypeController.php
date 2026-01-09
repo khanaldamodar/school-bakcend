@@ -26,7 +26,7 @@ class EventTypeController extends Controller
             'status' => true,
             'message' => 'Event Type Fetched Successfuly',
             'types' => $eventType
-        ], 404);
+        ], 200);
 
 
     }
