@@ -197,7 +197,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     // To manage the Events
 
-    Route::apiResource('tenants/{domain}/events-type', EventTypeController::class);
+    Route::apiResource('tenants/{domain}/events-type', EventTypeController::class)->except('index', 'show');
     Route::apiResource('tenants/{domain}/events', EventController::class)->except('index', 'show');
 
 
@@ -322,6 +322,11 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
+
+
+
+     Route::get('tenants/{domain}/events-type', [EventTypeController::class, 'index']);
+     Route::get('tenants/{domain}/events-type/{id}', [EventTypeController::class, 'show']);
 
     //? To show the counts in admin panel
     Route::get('tenants/{domain}/admin/dashboard/stats', [DashboardController::class, 'stats']);
