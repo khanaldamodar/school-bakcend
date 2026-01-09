@@ -11,6 +11,9 @@ class Voice extends Model
         'email',
         'message',
         'phone',
+        'role',
         'photo',
+        'cloudinary_id',
+        
     ];
 }
