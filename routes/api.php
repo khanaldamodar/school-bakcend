@@ -241,7 +241,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 
     // Create Voices for admin
-    Route::apiResource('tenants/{domain}/voices', VoiceController::class);
+    Route::apiResource('tenants/{domain}/voices', VoiceController::class)->except('index', 'show');
+
+    //
 });
 
 // ?For the Teachers and admin
@@ -322,6 +324,10 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
+
+
+ Route::get('tenants/{domain}/voices', [VoiceController::class, 'index']);
+ Route::get('tenants/{domain}/voices/{id}', [VoiceController::class, 'show']);
 
 
 
