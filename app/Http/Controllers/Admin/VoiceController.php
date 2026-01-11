@@ -91,7 +91,7 @@ class VoiceController extends Controller
             'message' => 'sometimes|required|string',
             'phone' => 'nullable|string',
             'photo' => 'nullable|image|max:2048',
-            'role' => 'seometimes|string'
+            'role' => 'required|string'
         ]);
 
         if ($validator->fails()) {
