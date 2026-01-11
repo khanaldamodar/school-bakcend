@@ -86,6 +86,7 @@ class FinalResultController extends Controller
 
             $generatedCount = 0;
 
+            $service = new ResultCalculationService();
             foreach ($students as $student) {
                 $totalMarksObtained = 0;
                 $totalFullMarks = 0;
@@ -136,14 +137,8 @@ class FinalResultController extends Controller
                     $actualPercentage = ($actualObtained / $fullTotal) * 100;
 
                     // Calculate Subject GPA (Standard 4.0 scale approximation)
-                    // >= 90 -> 4.0, 80-90 -> 3.6, etc.
-                    // Or simple calculation: (Percentage / 25) ? No, standard grading differs.
-                    // I'll implement a simple mapper or use user's "Same for GPA" instruction:
-                    // "generate random number between 80-100... Same for GPA"
-                    // If user meant "Generate random GPA between X and Y", I need that range.
-                    // But if they provided 80-100 (marks range), I'll infer GPA from marks.
-                    
-                    $subjectGPA = $this->calculateGPA($actualPercentage);
+                    $subjectGPA = $service->calculateGPA($actualObtained, $fullTotal);
+                    $subjectGrade = $service->getGradeFromPercentage($actualPercentage);
 
                     // Create FinalResult Entry for Subject
                     FinalResult::create([
@@ -155,7 +150,8 @@ class FinalResultController extends Controller
                         'final_practical_marks' => $obtainedPractical,
                         'final_percentage' => $actualPercentage,
                         'final_gpa' => $subjectGPA, // Subject GPA
-                        'is_passed' => true, // Assuming distinction/high marks pass
+                        'final_grade' => $subjectGrade,
+                        'is_passed' => $subjectGPA > 0, // In Nepal, 0 GPA means NG (Failed)
                         'result_type' => 'percentage', // Must be 'gpa' or 'percentage'
                         'calculation_method' => 'simple', // It's a direct generation, not weighted from terms
                     ]);
@@ -163,26 +159,26 @@ class FinalResultController extends Controller
                     $totalMarksObtained += $actualObtained;
                     $totalFullMarks += $fullTotal;
                     $totalGPA += $subjectGPA; // Summing for average later? 
-                    // Weighted GPA is better: (GPA * CreditHour) / TotalCreditHours. 
-                    // Assuming all subjects equal weight for now unless credit hours exist.
                     $subjectCount++;
                 }
 
                 // Create Overall Result (Subject ID null)
                 if ($subjectCount > 0) {
                     $overallPercentage = ($totalMarksObtained / $totalFullMarks) * 100;
-                    $overallGPA = $this->calculateGPA($overallPercentage); // Or average of subject GPAs
+                    $overallGPA = $service->calculateGPA($totalMarksObtained, $totalFullMarks);
+                    $overallGrade = $service->getGradeFromPercentage($overallPercentage);
 
                     FinalResult::create([
                         'student_id' => $student->id,
                         'class_id' => $classId,
                         'academic_year_id' => $academicYearId,
                         'subject_id' => null, // Overall
-                        'final_theory_marks' => null,
-                        'final_practical_marks' => null, // these are aggregate, maybe not needed or sum
+                        'final_theory_marks' => $totalMarksObtained, // Storing total marks in theory field for overall
+                        'final_practical_marks' => null, 
                         'final_percentage' => $overallPercentage,
                         'final_gpa' => $overallGPA,
-                        'is_passed' => true,
+                        'final_grade' => $overallGrade,
+                        'is_passed' => $overallGPA > 0,
                         'result_type' => 'percentage', // Must be 'gpa' or 'percentage'
                         'calculation_method' => 'simple',
                         'remarks' => $this->getRemarks($overallGPA) . " (Generated)"
@@ -209,9 +205,13 @@ class FinalResultController extends Controller
 
             DB::commit();
 
+            // Fetch and format results for the response
+            $formattedResults = $this->formatResults($classId, $academicYearId);
+
             return response()->json([
                 'status' => true,
                 'message' => "Successfully generated results for $generatedCount students.",
+                'data' => $formattedResults
             ], 201);
 
         } catch (\Exception $e) {
@@ -257,14 +257,33 @@ class FinalResultController extends Controller
         
         $results = $query->get();
 
-        // Format for GradeSheet
-        // We want: Student -> [Subjects...] -> GPA/Marks
-        
+        $formatted = $this->formatResults($classId, $academicYearId, $results);
+
+        return response()->json([
+            'status' => true,
+            'data' => $formatted
+        ]);
+    }
+
+    /**
+     * Helper to format final results for API responses
+     */
+    private function formatResults($classId, $academicYearId, $results = null)
+    {
+        if (!$results) {
+            $results = FinalResult::with(['student', 'subject'])
+                ->where('class_id', $classId)
+                ->where('academic_year_id', $academicYearId)
+                ->get();
+        }
+
         $grouped = $results->groupBy('student_id');
         $formatted = [];
+        $calculationService = new ResultCalculationService();
 
         foreach ($grouped as $studentId => $studentResults) {
-            $student = $studentResults->first()->student;
+            $firstRes = $studentResults->first();
+            $student = $firstRes ? $firstRes->student : null;
             if (!$student) continue;
 
             $subjectResults = $studentResults->whereNotNull('subject_id')->values();
@@ -276,27 +295,36 @@ class FinalResultController extends Controller
                     'name' => $student->first_name . ' ' . $student->last_name,
                     'roll_number' => $student->roll_number,
                 ],
-                'subjects' => $subjectResults->map(function($res) {
+                'subjects' => $subjectResults->map(function($res) use ($calculationService, $classId) {
+                    $subject = $res->subject;
+                    $pPass = $calculationService->getPracticalPassMarksFromActivities($subject->id, $classId) 
+                             ?: ($subject->practical_pass_marks ?? 0);
+                    
                     return [
-                        'subject_name' => $res->subject->name ?? 'Unknown',
+                        'subject_id' => $subject->id ?? null,
+                        'subject_name' => $subject->name ?? 'Unknown',
+                        'theory_full_marks' => $subject->theory_marks ?? 0,
+                        'theory_pass_marks' => $subject->theory_pass_marks ?? 0,
+                        'practical_full_marks' => $subject->practical_marks ?? 0,
+                        'practical_pass_marks' => $pPass,
+                        'final_theory_marks' => $res->final_theory_marks,
+                        'final_practical_marks' => $res->final_practical_marks,
                         'obtained_marks' => ($res->final_theory_marks + $res->final_practical_marks),
                         'percentage' => $res->final_percentage,
                         'gpa' => $res->final_gpa,
-                        'grade' => $res->final_grade // if we stored it, else calculate
+                        'grade' => $res->final_grade
                     ];
                 }),
                 'overall' => [
                     'gpa' => $overallResult ? $overallResult->final_gpa : null,
+                    'grade' => $overallResult ? $overallResult->final_grade : null,
                     'percentage' => $overallResult ? $overallResult->final_percentage : null,
                     'rank' => $overallResult ? $overallResult->rank : null,
                 ]
             ];
         }
 
-        return response()->json([
-            'status' => true,
-            'data' => $formatted
-        ]);
+        return $formatted;
     }
 
     private function calculateGPA($percentage) {
