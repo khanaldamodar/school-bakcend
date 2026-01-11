@@ -3,6 +3,7 @@ use App\Http\Controllers\Admin\AnalyticalReportController;
 use App\Http\Controllers\Admin\AttendanceController;
 
 use App\Http\Controllers\Admin\EventTypeController;
+use App\Http\Controllers\Admin\QuickLinkContrtoller;
 use App\Http\Controllers\Admin\VoiceController;
 use App\Http\Controllers\SuperAdmin\TenantController;
 use App\Http\Controllers\Admin\ClassController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\SuperAdmin\SystemLogController;
 use App\Http\Controllers\SuperAdmin\SmsController as SuperAdminSmsController;
 use App\Http\Controllers\SuperAdmin\SchoolDataController;
 use App\Http\Controllers\SuperAdmin\LocalBodiesController;
+use App\Http\Controllers\Admin\FinalResultController;
 use Illuminate\Support\Facades\Route;
 
 //? Super Admin routes 
@@ -110,6 +112,8 @@ Route::prefix('tenants/{domain}')
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
+    // ? Quick Links
+    Route::apiResource("/tenants/{domain}/quick-links", QuickLinkContrtoller::class)->except(['index', 'show']);
 
     // ? For Creating the Clubs
     Route::apiResource("/tenants/{domain}/clubs", ClubController::class)->except('index', 'show');
@@ -187,6 +191,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
     //? To filter the results of students based in class and the studentId and classId
     Route::get('tenants/{domain}/students/results/class/{classId}', [ResultController::class, 'resultByClass']);
+
+    // ? Final Result Generation (Admin Only)
+    Route::post('tenants/{domain}/final-results/generate', [FinalResultController::class, 'generate']);
 
     // Get full result for a specific student (Admin/Teacher)
     // Route::get('tenants/{domain}/students/{studentId}/full-result', [ResultController::class, 'studentResult']);
@@ -319,20 +326,26 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
     // My Attendance
     Route::get('tenants/{domain}/my-attendance', [AttendanceController::class, 'myAttendance']);
+
+    // ? Final Result Viewing (GradeSheet)
+    Route::get('tenants/{domain}/final-results/class/{classId}', [FinalResultController::class, 'getResults']);
 });
 
 
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
 
+    // ? Quick Links 
+    Route::get("/tenants/{domain}/quick-links", [QuickLinkContrtoller::class, 'index']);
+    Route::get("/tenants/{domain}/quick-links/{id}", [QuickLinkContrtoller::class, 'show']);
 
- Route::get('tenants/{domain}/voices', [VoiceController::class, 'index']);
- Route::get('tenants/{domain}/voices/{id}', [VoiceController::class, 'show']);
+
+    Route::get('tenants/{domain}/voices', [VoiceController::class, 'index']);
+    Route::get('tenants/{domain}/voices/{id}', [VoiceController::class, 'show']);
 
 
-
-     Route::get('tenants/{domain}/events-type', [EventTypeController::class, 'index']);
-     Route::get('tenants/{domain}/events-type/{id}', [EventTypeController::class, 'show']);
+    Route::get('tenants/{domain}/events-type', [EventTypeController::class, 'index']);
+    Route::get('tenants/{domain}/events-type/{id}', [EventTypeController::class, 'show']);
 
     //? To show the counts in admin panel
     Route::get('tenants/{domain}/admin/dashboard/stats', [DashboardController::class, 'stats']);
