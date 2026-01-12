@@ -208,4 +208,15 @@ class ResultSettingController extends Controller
     }
 
 
+    public function destroy(string $domain, string $id)
+    {
+        $resultSettings = ResultSetting::findOrFail($id);
+        $resultSettings->delete();
+
+        TenantLogger::logDelete('result_settings', "Result setting deleted", [
+            'id' => $id
+        ]);
+    }
+
+
 }
