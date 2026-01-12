@@ -27,5 +27,6 @@ class WebsiteSetting extends Model
         'principal_name',
         'principal_image',
         'principal_message',
+        'map_url'
     ];
 }

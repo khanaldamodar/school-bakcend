@@ -2,6 +2,7 @@
 use App\Http\Controllers\Admin\AnalyticalReportController;
 use App\Http\Controllers\Admin\AttendanceController;
 
+use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\EventTypeController;
 use App\Http\Controllers\Admin\QuickLinkContrtoller;
 use App\Http\Controllers\Admin\VoiceController;
@@ -111,6 +112,10 @@ Route::prefix('tenants/{domain}')
 // use App\Http\Controllers\Api\SubjectController;
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
+
+    // ? Contacts
+    Route::apiResource("/tenants/{domain}/contacts", ContactController::class)->except(['store']);
+
 
     // ? Quick Links
     Route::apiResource("/tenants/{domain}/quick-links", QuickLinkContrtoller::class)->except(['index', 'show']);
@@ -335,6 +340,8 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
 
+    Route::get("/tenants/{domain}/contacts", action: [ContactController::class, 'post']);
+
     // ? Quick Links 
     Route::get("/tenants/{domain}/quick-links", [QuickLinkContrtoller::class, 'index']);
     Route::get("/tenants/{domain}/quick-links/{id}", [QuickLinkContrtoller::class, 'show']);
@@ -396,11 +403,9 @@ Route::middleware(['tenant'])->group(function () {
 Route::post("/auth/gov", [GovernmentController::class, 'register']);
 Route::post("/auth/gov/login", [GovernmentController::class, 'login']);
 
-
 // ? Apis which needs everywhere access
 Route::get('local-bodies/districts', [App\Http\Controllers\SuperAdmin\LocalBodiesController::class, 'getAllDistricts']);
 Route::get('local-bodies/{district}', [App\Http\Controllers\SuperAdmin\LocalBodiesController::class, 'getByDistrict']);
-
 
 
 // ?For the Government School Controller

@@ -47,9 +47,10 @@ class WebsiteSettingController extends Controller
             'principal_message' => 'nullable|string',
             'hero_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'principal_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'map_url' => 'nullable|string|max:255',
         ]);
 
-        // ✅ Upload hero image if provided
+        //  Upload hero image if provided
         if ($request->hasFile('hero_image')) {
             $uploadResult = \App\Helpers\ImageUploadHelper::uploadToCloud(
                 $request->file('hero_image'),
@@ -59,7 +60,7 @@ class WebsiteSettingController extends Controller
             $validatedData['hero_image_public_id'] = $uploadResult['public_id'];
         }
 
-        // ✅ Upload principal image if provided
+        //  Upload principal image if provided
         if ($request->hasFile('principal_image')) {
             $uploadResult = \App\Helpers\ImageUploadHelper::uploadToCloud(
                 $request->file('principal_image'),
@@ -69,7 +70,7 @@ class WebsiteSettingController extends Controller
             $validatedData['principal_image_public_id'] = $uploadResult['public_id'];
         }
 
-        // ✅ Create the website setting
+        //  Create the website setting
         $websiteSetting = WebsiteSetting::create($validatedData);
 
         TenantLogger::logCreate('website_settings', "Website settings created", [
@@ -126,9 +127,10 @@ class WebsiteSettingController extends Controller
             'principal_message' => 'sometimes|nullable|string',
             'hero_image' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'principal_image' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'map_url' => 'sometimes|nullable|string|max:255',
         ]);
 
-        // ✅ Upload hero image if provided
+        //  Upload hero image if provided
         if ($request->hasFile('hero_image')) {
             $oldHeroPublicId = $websiteSetting->hero_image; // store old image public_id if you save it
             $uploadResult = \App\Helpers\ImageUploadHelper::uploadToCloud(
@@ -139,7 +141,7 @@ class WebsiteSettingController extends Controller
             $validatedData['hero_image'] = $uploadResult['url'];
         }
 
-        // ✅ Upload principal image if provided
+        //  Upload principal image if provided
         if ($request->hasFile('principal_image')) {
             $oldPrincipalPublicId = $websiteSetting->principal_image;
             $uploadResult = \App\Helpers\ImageUploadHelper::uploadToCloud(
