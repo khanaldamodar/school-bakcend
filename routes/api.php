@@ -341,7 +341,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 // No need to login Routes
 Route::middleware(['tenant'])->group(function () {
 
-    Route::get("/tenants/{domain}/contacts", action: [ContactController::class, 'post']);
+    Route::get("/tenants/{domain}/contacts", action: [ContactController::class, 'store']);
 
     // ? Quick Links 
     Route::get("/tenants/{domain}/quick-links", [QuickLinkContrtoller::class, 'index']);
