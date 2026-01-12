@@ -134,7 +134,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     Route::put('/tenants/{domain}/settings', [SettingController::class, 'update']);
     Route::post('/tenants/{domain}/result-settings', [ResultSettingController::class, 'store']);
     Route::put('/tenants/{domain}/result-settings/{id}', [ResultSettingController::class, 'update']);
-    Route::put('/tenants/{domain}/result-settings/{id}', [ResultSettingController::class, 'destroy']);
+    Route::delete('/tenants/{domain}/result-settings/{id}', [ResultSettingController::class, 'destroy']);
 
 
 

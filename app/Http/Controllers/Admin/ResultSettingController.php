@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Event;
 use App\Models\Admin\ResultSetting;
+use App\Models\Admin\Setting;
 use Illuminate\Http\Request;
 use App\Services\TenantLogger;
 
@@ -15,38 +16,38 @@ class ResultSettingController extends Controller
      */
     public function index(Request $request, $domain)
     {
+        // Get academic_year_id from query parameter
         $academicYearId = $request->query('academic_year_id');
-        
-        $query = ResultSetting::with('terms');
-        
+
+        // Start with basic query
+        $settings = Setting::first();
+
+        if (!$settings) {
+            return response()->json(['message' => 'No settings found'], 404);
+        }
+
+        // Load resultSetting with academic year filter
         if ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId);
+            // Load with specific academic year
+            $settings->load([
+                'resultSetting' => function ($query) use ($academicYearId) {
+                    $query->where('academic_year_id', $academicYearId)
+                        ->with('terms');
+                }
+            ]);
         } else {
-            // Default to current academic year
-            $query->whereHas('academicYear', function($q) {
-                $q->where('is_current', true);
-            });
-        }
-        
-        $setting = $query->first();
-
-        // If no setting for current year, just get any existing one as fallback
-        if (!$setting && !$academicYearId) {
-            $setting = ResultSetting::with('terms')->latest()->first();
+            // Default: load with current academic year
+            $settings->load([
+                'resultSetting' => function ($query) {
+                    $query->whereHas('academicYear', function ($q) {
+                        $q->where('is_current', true);
+                    })
+                        ->with('terms');
+                }
+            ]);
         }
 
-        if (!$setting) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Setting not found'
-            ], 404);
-        }
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Result setting fetched successfully',
-            'data' => $setting
-        ]);
+        return response()->json($settings, 200);
     }
 
     /**
@@ -72,9 +73,11 @@ class ResultSettingController extends Controller
         ]);
 
         // Prevent duplicate record for same setting and academic year
-        if (ResultSetting::where('setting_id', $validated['setting_id'])
-            ->where('academic_year_id', $validated['academic_year_id'])
-            ->exists()) {
+        if (
+            ResultSetting::where('setting_id', $validated['setting_id'])
+                ->where('academic_year_id', $validated['academic_year_id'])
+                ->exists()
+        ) {
             return response()->json([
                 'status' => false,
                 'message' => 'Result setting already exists for this school and academic year'
