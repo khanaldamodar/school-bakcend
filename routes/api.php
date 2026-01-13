@@ -441,5 +441,7 @@ Route::middleware(['auth:sanctum', 'role:government'])->group(function () {
 
     Route::post('/gov/analytics/ethnicity', [AnalyticsController::class, 'ethnicity']);
     Route::post('/gov/analytics/comprehensive', [AnalyticsController::class, 'comprehensive']);
+    Route::post('/gov/analytics/class-activity', [AnalyticsController::class, 'getClassActivityReport']);
+    Route::post('/gov/analytics/teacher-activity', [AnalyticsController::class, 'getTeacherAnalyticsReport']);
 
 });

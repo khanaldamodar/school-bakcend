@@ -35,6 +35,8 @@ class FinalResultController extends Controller
             'academic_year_id' => 'required|exists:academic_years,id',
             'min_marks' => 'required|numeric|min:0|max:100',
             'max_marks' => 'required|numeric|min:0|max:100|gte:min_marks',
+            'student_ids' => 'nullable|array',
+            'student_ids.*' => 'exists:students,id',
             // Optional: specifically separate GPA range if provided, but user said "Same for GPA"
             // which usually means generate marks that LEAD to similar high GPA.
             // We will calculate GPA from marks.
@@ -48,16 +50,20 @@ class FinalResultController extends Controller
         try {
             DB::beginTransaction();
 
-            // 3. Clear existing FinalResults for this class/year to avoid duplicates?
-            // The user implies "Provide Distinction for all", overwriting/creating.
-            // Let's delete existing purely generated ones or just update?
-            // Safer to delete old ones for this batch context to ensure clean slate if re-run.
-            FinalResult::where('class_id', $classId)
-                ->where('academic_year_id', $academicYearId)
-                ->delete();
-
+            // 3. Clear existing FinalResults
+            $resultsQuery = FinalResult::where('class_id', $classId)
+                ->where('academic_year_id', $academicYearId);
+            
             // 4. Fetch Students
-            $students = Student::where('class_id', $classId)->get();
+            $studentQuery = Student::where('class_id', $classId);
+
+            if (!empty($validated['student_ids'])) {
+                $resultsQuery->whereIn('student_id', $validated['student_ids']);
+                $studentQuery->whereIn('id', $validated['student_ids']);
+            }
+
+            $resultsQuery->delete();
+            $students = $studentQuery->get();
 
             if ($students->isEmpty()) {
                 return response()->json([
