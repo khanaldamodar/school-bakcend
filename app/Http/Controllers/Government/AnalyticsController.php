@@ -512,9 +512,9 @@ public function getClassActivityReport(Request $request)
         "age_group" => "nullable" // Can be array or string
     ]);
 
-    $cacheKey = 'gov_class_activity_report_' . md5(json_encode($request->all()));
+    $cacheKey = 'gov_class_activity_report_v3_' . md5(json_encode($request->all()));
 
-    return Cache::remember($cacheKey, 600, function () use ($request) {
+    return Cache::remember($cacheKey, 60, function () use ($request) {
         $results = [];
 
         foreach ($request->schools as $schoolDb) {
@@ -531,8 +531,38 @@ public function getClassActivityReport(Request $request)
                 $requestClassIds = [$requestClassIds];
             }
 
+            // Determine Academic Year (Use request or default to current)
+            $academicYearId = $request->academic_year_id;
+            $academicYearDetails = null;
+
+            if ($academicYearId) {
+                $ay = \App\Models\Admin\AcademicYear::find($academicYearId);
+                if ($ay) {
+                    $academicYearDetails = ['id' => $ay->id, 'name' => $ay->name, 'is_current' => $ay->is_current];
+                }
+            } else {
+                $ay = \App\Models\Admin\AcademicYear::current();
+                if ($ay) {
+                    $academicYearId = $ay->id;
+                    $academicYearDetails = ['id' => $ay->id, 'name' => $ay->name, 'is_current' => true];
+                }
+            }
+
             $studentQuery = Student::query();
             
+            // Filter by Academic Year using StudentClassHistory
+            // Since students table doesn't have academic_year_id, we join with history
+            if ($academicYearId) {
+                $studentQuery->join('student_class_histories', 'students.id', '=', 'student_class_histories.student_id')
+                    ->where('student_class_histories.academic_year_id', $academicYearId)
+                    ->select('students.*'); // Avoid column collisions
+            } else {
+                 // Fallback: If no history for that year, maybe just show current students?
+                 // But logic says we must filter by year if we found one.
+                 // For safety if for some reason join fails or logic is desired differently:
+                 // The previous code assumed column existed. 
+            }
+
             // Apply filters if provided
             if (!empty($requestClassIds)) {
                 $studentQuery->whereIn('class_id', $requestClassIds);
@@ -717,11 +747,11 @@ public function getClassActivityReport(Request $request)
                 ->toArray();
 
             // Get academic results for filtered students
+            // Use the determined academicYearId for filtering results
             $academicQuery = FinalResult::whereNull('subject_id');
             
-            // Apply academic year filter if provided
-            if ($request->filled('academic_year_id')) {
-                $academicQuery->where('academic_year_id', $request->academic_year_id);
+            if ($academicYearId) {
+                $academicQuery->where('academic_year_id', $academicYearId);
             }
             
             // Apply class filter to academic results
@@ -747,15 +777,16 @@ public function getClassActivityReport(Request $request)
             $results[] = [
                 "school_id" => $schoolDb,
                 "school_name" => $tenant->name,
-                "classes" => $filteredClasses, // Only show filtered classes
-                "age_groups" => $ageGroups, // Age groups from filtered students
-                "ethnicity" => array_values($ethnicityStats), // Ethnicity from filtered students
+                "academic_year" => $academicYearDetails, // Return details of year used
+                "classes" => $filteredClasses,
+                "age_groups" => $ageGroups,
+                "ethnicity" => array_values($ethnicityStats),
                 "academic" => [
                     "passed" => $passCount,
                     "failed" => $failCount,
                     "total" => $passCount + $failCount
                 ],
-                "total_students" => $totalFilteredStudents // Add total filtered students
+                "total_students" => $totalFilteredStudents
             ];
         }
 
