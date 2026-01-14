@@ -602,7 +602,12 @@ class AnalyticsController extends Controller
     public function getTeacherAnalyticsReport(Request $request)
     {
         $request->validate([
-            "schools" => "required|array|min:1"
+            "schools" => "required|array|min:1",
+            "gender" => "nullable|string",
+            "post" => "nullable|string",
+            "level" => "nullable|string",
+            "ethnicity" => "nullable|string",
+            "age_group" => "nullable|string"
         ]);
 
         $cacheKey = 'gov_teacher_analytics_report_' . md5(json_encode($request->all()));
@@ -619,6 +624,39 @@ class AnalyticsController extends Controller
                 }
 
                 $teacherQuery = Teacher::query();
+
+                if ($request->filled('gender')) {
+                    $teacherQuery->where('gender', $request->gender);
+                }
+
+                if ($request->filled('post')) {
+                    $teacherQuery->where('post', $request->post);
+                }
+
+                if ($request->filled('level')) {
+                    $teacherQuery->where('grade', $request->level);
+                }
+
+                if ($request->filled('ethnicity')) {
+                    $teacherQuery->where('ethnicity', $request->ethnicity);
+                }
+
+                if ($request->filled('age_group')) {
+                    $ageGroup = $request->age_group;
+                    $now = \Carbon\Carbon::now();
+                    
+                    if ($ageGroup === '20-30') {
+                        $teacherQuery->whereBetween('dob', [$now->copy()->subYears(30), $now->copy()->subYears(20)]);
+                    } elseif ($ageGroup === '30-40') {
+                        $teacherQuery->whereBetween('dob', [$now->copy()->subYears(40), $now->copy()->subYears(31)]);
+                    } elseif ($ageGroup === '40-50') {
+                        $teacherQuery->whereBetween('dob', [$now->copy()->subYears(50), $now->copy()->subYears(41)]);
+                    } elseif ($ageGroup === '50-60') {
+                        $teacherQuery->whereBetween('dob', [$now->copy()->subYears(60), $now->copy()->subYears(51)]);
+                    } elseif ($ageGroup === 'above-60') {
+                        $teacherQuery->where('dob', '<', $now->copy()->subYears(61));
+                    }
+                }
 
                 // 1. Age Groups
                 $ageGroups = [
