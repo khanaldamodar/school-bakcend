@@ -47,7 +47,7 @@ class TeacherController extends Controller
             'disability_options' => 'required|in:none,visual,hearing,physical,mental,other',
             'is_tribe' => 'required|boolean',
             'image' => 'nullable|file|image|max:2048',
-            'grade' => 'string|nullable',
+            'grade' => 'nullable',
             'gender' => 'required|string',
             'dob' => 'required|date',
             'nationality' => 'required|string',
@@ -107,20 +107,20 @@ class TeacherController extends Controller
                 'address' => $data['address'] ?? null,
                 'blood_group' => $data['blood_group'] ?? null,
                 'is_disabled' => $data['is_disabled'],
-                'disability_options' => $data['disability_options'],
+                'disability_options' => $data['disability_options'] ?? null,
                 'is_tribe' => $data['is_tribe'],
                 'image' => $imageData['url'] ?? null,
                 'cloudinary_id' => $cloudinaryId,
                 'gender' => $data['gender'],
-                'grade' => $data['grade'],
-                'ethnicity' => $data['ethnicity'],
+                'grade' => $data['grade'] ?? null,
+                'ethnicity' => $data['ethnicity'] ?? null,
                 'post' => $data['post'],
-                'dob' => $data['dob'],
+                'dob' => $data['dob'] ?? null,
                 'nationality' => $data['nationality'],
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
-                'dob_bs' => $data['dob_bs'],
-                'joining_data_bs' => $data['joining_data_bs'],
-                'joining_date' => $data['joining_date']
+                'dob_bs' => $data['dob_bs'] ?? null,
+                'joining_data_bs' => $data['joining_data_bs'] ?? null,
+                'joining_date' => $data['joining_date'] ?? null 
             ]);
 
             //  Sync subjects
@@ -260,7 +260,7 @@ class TeacherController extends Controller
                 'address' => $data['address'] ?? null,
                 'blood_group' => $data['blood_group'] ?? null,
                 'is_disabled' => $data['is_disabled'],
-                'disability_options' => $data['disability_options'],
+                'disability_options' => $data['disability_options'] ?? null,
                 'is_tribe' => $data['is_tribe'],
                 'image' => $imageUrl,
                 'cloudinary_id' => $cloudinaryId,
@@ -268,12 +268,12 @@ class TeacherController extends Controller
                 'dob' => $data['dob'],
                 'nationality' => $data['nationality'],
                 'class_teacher_of' => $data['class_teacher_of'] ?? null,
-                'grade' => $data['grade'],
-                'ethnicity' => $data['ethnicity'],
+                'grade' => $data['grade'] ?? null,
+                'ethnicity' => $data['ethnicity'] ?? null,
                 'post' => $data['post'],
                 'dob_bs' => $data['dob_bs'],
-                'joining_data_bs' => $data['joining_data_bs'],
-                'joining_date' => $data['joining_date']
+                'joining_data_bs' => $data['joining_data_bs'] ?? null,
+                'joining_date' => $data['joining_date'] ?? null
             ]);
 
             //  Sync subjects
