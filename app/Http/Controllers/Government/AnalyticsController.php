@@ -501,103 +501,116 @@ class AnalyticsController extends Controller
         ]);
     }
     public function getClassActivityReport(Request $request)
-    {
-        $request->validate([
-            "schools" => "required|array|min:1",
-            "class_id" => "nullable", // Can be single ID or array
-            "academic_year_id" => "nullable|exists:academic_years,id"
-        ]);
+{
+    $request->validate([
+        "schools" => "required|array|min:1",
+        "class_id" => "nullable", // Can be single ID or array
+        "academic_year_id" => "nullable|integer"
+    ]);
 
-        $cacheKey = 'gov_class_activity_report_' . md5(json_encode($request->all()));
+    $cacheKey = 'gov_class_activity_report_' . md5(json_encode($request->all()));
 
-        return Cache::remember($cacheKey, 600, function () use ($request) {
-            $results = [];
+    return Cache::remember($cacheKey, 600, function () use ($request) {
+        $results = [];
 
-            foreach ($request->schools as $schoolDb) {
-                try {
-                    $tenant = Tenant::findOrFail($schoolDb);
-                    tenancy()->initialize($tenant);
-                } catch (\Exception $e) {
-                    continue;
-                }
-
-                $classIds = $request->class_id;
-                if ($classIds && !is_array($classIds)) {
-                    $classIds = [$classIds];
-                }
-
-                // 1. Student Activity Base Query
-                $studentQuery = Student::query();
-                if (!empty($classIds)) {
-                    $studentQuery->whereIn('class_id', $classIds);
-                }
-
-                // 2. Age Groups: 0-5, 5-10, 10-15, 15-20, 20-25
-                $ageGroups = [
-                    '0-5' => 0,
-                    '5-10' => 0,
-                    '10-15' => 0,
-                    '15-20' => 0,
-                    '20-25' => 0,
-                    'above-25' => 0
-                ];
-
-                $studentsDob = (clone $studentQuery)->whereNotNull('dob')->pluck('dob');
-                foreach ($studentsDob as $dob) {
-                    try {
-                        $age = \Carbon\Carbon::parse($dob)->age;
-                        if ($age <= 5) $ageGroups['0-5']++;
-                        elseif ($age <= 10) $ageGroups['5-10']++;
-                        elseif ($age <= 15) $ageGroups['10-15']++;
-                        elseif ($age <= 20) $ageGroups['15-20']++;
-                        elseif ($age <= 25) $ageGroups['20-25']++;
-                        else $ageGroups['above-25']++;
-                    } catch (\Exception $e) {
-                        // Skip invalid dates
-                    }
-                }
-
-                // 3. Ethnicity Stats
-                $ethnicityStats = (clone $studentQuery)
-                    ->selectRaw('ethnicity, count(*) as count')
-                    ->whereNotNull('ethnicity')
-                    ->where('ethnicity', '!=', '')
-                    ->groupBy('ethnicity')
-                    ->orderByDesc('count')
-                    ->get();
-
-                // 4. Academic (Pass/Fail) from FinalResult
-                $academicQuery = FinalResult::whereNull('subject_id');
-                if ($request->filled('academic_year_id')) {
-                    $academicQuery->where('academic_year_id', $request->academic_year_id);
-                }
-                
-                if (!empty($classIds)) {
-                    $academicQuery->whereIn('class_id', $classIds);
-                }
-
-                $passCount = (clone $academicQuery)->where('is_passed', true)->count();
-                $failCount = (clone $academicQuery)->where('is_passed', false)->count();
-
-                $results[] = [
-                    "school_id" => $schoolDb,
-                    "school_name" => $tenant->name,
-                    "age_groups" => $ageGroups,
-                    "ethnicity" => $ethnicityStats,
-                    "academic" => [
-                        "passed" => $passCount,
-                        "failed" => $failCount,
-                        "total" => $passCount + $failCount
-                    ]
-                ];
+        foreach ($request->schools as $schoolDb) {
+            try {
+                $tenant = Tenant::findOrFail($schoolDb);
+                tenancy()->initialize($tenant);
+            } catch (\Exception $e) {
+                continue;
             }
 
-            return response()->json([
-                "status" => true,
-                "data" => $results
-            ]);
-        });
-    }
+            $classIds = $request->class_id;
+            if ($classIds && !is_array($classIds)) {
+                $classIds = [$classIds];
+            }
+
+            $studentQuery = Student::query();
+            if (!empty($classIds)) {
+                $studentQuery->whereIn('class_id', $classIds);
+            }
+
+            
+            $allClasses = \DB::table('classes')
+                ->select('id as class_id', 'name as class_name')
+                ->orderBy('id')
+                ->get()
+                ->map(function ($class) {
+                    return [
+                        'class_id' => $class->class_id,
+                        'class_name' => $class->class_name
+                    ];
+                })
+                ->toArray();
+
+           
+            $ageGroups = [
+                '0-5' => 0,
+                '5-10' => 0,
+                '10-15' => 0,
+                '15-20' => 0,
+                '20-25' => 0,
+                'above-25' => 0
+            ];
+
+            $studentsDob = (clone $studentQuery)->whereNotNull('dob')->pluck('dob');
+            foreach ($studentsDob as $dob) {
+                try {
+                    $age = \Carbon\Carbon::parse($dob)->age;
+                    if ($age <= 5) $ageGroups['0-5']++;
+                    elseif ($age <= 10) $ageGroups['5-10']++;
+                    elseif ($age <= 15) $ageGroups['10-15']++;
+                    elseif ($age <= 20) $ageGroups['15-20']++;
+                    elseif ($age <= 25) $ageGroups['20-25']++;
+                    else $ageGroups['above-25']++;
+                } catch (\Exception $e) {
+                    
+                }
+            }
+
+            // 4. Ethnicity Stats
+            $ethnicityStats = (clone $studentQuery)
+                ->selectRaw('ethnicity, count(*) as count')
+                ->whereNotNull('ethnicity')
+                ->where('ethnicity', '!=', '')
+                ->groupBy('ethnicity')
+                ->orderByDesc('count')
+                ->get();
+
+            // 5. Academic (Pass/Fail) from FinalResult
+            $academicQuery = FinalResult::whereNull('subject_id');
+            if ($request->filled('academic_year_id')) {
+                $academicQuery->where('academic_year_id', $request->academic_year_id);
+            }
+            
+            if (!empty($classIds)) {
+                $academicQuery->whereIn('class_id', $classIds);
+            }
+
+            $passCount = (clone $academicQuery)->where('is_passed', true)->count();
+            $failCount = (clone $academicQuery)->where('is_passed', false)->count();
+
+            $results[] = [
+                "school_id" => $schoolDb,
+                "school_name" => $tenant->name,
+                "classes" => $allClasses, 
+                "age_groups" => $ageGroups,
+                "ethnicity" => $ethnicityStats,
+                "academic" => [
+                    "passed" => $passCount,
+                    "failed" => $failCount,
+                    "total" => $passCount + $failCount
+                ]
+            ];
+        }
+
+        return response()->json([
+            "status" => true,
+            "data" => $results
+        ]);
+    });
+}
 
     public function getTeacherAnalyticsReport(Request $request)
     {
