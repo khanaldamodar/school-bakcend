@@ -183,20 +183,20 @@ class TeacherController extends Controller
         $tenantDomain = tenant()->database;
 
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'phone' => 'required|string|unique:users,phone,' . $user->id,
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'phone' => 'sometimes|string|unique:users,phone,' . $user->id,
             'qualification' => 'nullable|string',
             'address' => 'nullable|string',
             'blood_group' => 'nullable|string',
-            'is_disabled' => 'required|boolean',
-            'disability_options' => 'required|in:none,visual,hearing,physical,mental,other',
-            'is_tribe' => 'required|boolean',
+            'is_disabled' => 'sometimes|boolean',
+            'disability_options' => 'sometimes|in:none,visual,hearing,physical,mental,other',
+            'is_tribe' => 'sometimes|boolean',
             'image' => 'nullable|file|image|max:2048',
-            'gender' => 'required|string',
+            'gender' => 'sometimes|string',
             'grade' => 'sometimes|string',
-            'dob' => 'required|date',
-            'nationality' => 'required|string',
+            'dob' => 'sometimes|date',
+            'nationality' => 'sometimes|string',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
             'class_teacher_of' => 'nullable|exists:classes,id',
@@ -207,7 +207,6 @@ class TeacherController extends Controller
             'joining_date' => 'nullable',
             'role_ids' => 'nullable|array',
             'role_ids.*' => 'exists:teacher_roles,id',
-
         ]);
 
         if ($validator->fails()) {
@@ -244,36 +243,36 @@ class TeacherController extends Controller
                 }
             }
 
-            //  Update user
+            // Update user
             $user->update([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'phone' => $data['phone'],
+                'name' => $data['name'] ?? $user->name,
+                'email' => $data['email'] ?? $user->email,
+                'phone' => $data['phone'] ?? $user->phone,
             ]);
 
-            //  Update teacher
+            // Update teacher
             $teacher->update([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'phone' => $data['phone'],
-                'qualification' => $data['qualification'] ?? null,
-                'address' => $data['address'] ?? null,
-                'blood_group' => $data['blood_group'] ?? null,
-                'is_disabled' => $data['is_disabled'],
-                'disability_options' => $data['disability_options'] ?? null,
-                'is_tribe' => $data['is_tribe'],
+                'name' => $data['name'] ?? $teacher->name,
+                'email' => $data['email'] ?? $teacher->email,
+                'phone' => $data['phone'] ?? $teacher->phone,
+                'qualification' => $data['qualification'] ?? $teacher->qualification,
+                'address' => $data['address'] ?? $teacher->address,
+                'blood_group' => $data['blood_group'] ?? $teacher->blood_group,
+                'is_disabled' => $data['is_disabled'] ?? $teacher->is_disabled,
+                'disability_options' => $data['disability_options'] ?? $teacher->disability_options,
+                'is_tribe' => $data['is_tribe'] ?? $teacher->is_tribe,
                 'image' => $imageUrl,
                 'cloudinary_id' => $cloudinaryId,
-                'gender' => $data['gender'],
-                'dob' => $data['dob'],
-                'nationality' => $data['nationality'],
-                'class_teacher_of' => $data['class_teacher_of'] ?? null,
-                'grade' => $data['grade'] ?? null,
-                'ethnicity' => $data['ethnicity'] ?? null,
-                'post' => $data['post'],
-                'dob_bs' => $data['dob_bs'],
-                'joining_data_bs' => $data['joining_data_bs'] ?? null,
-                'joining_date' => $data['joining_date'] ?? null
+                'gender' => $data['gender'] ?? $teacher->gender,
+                'dob' => $data['dob'] ?? $teacher->dob,
+                'nationality' => $data['nationality'] ?? $teacher->nationality,
+                'class_teacher_of' => $data['class_teacher_of'] ?? $teacher->class_teacher_of,
+                'grade' => $data['grade'] ?? $teacher->grade,
+                'ethnicity' => $data['ethnicity'] ?? $teacher->ethnicity,
+                'post' => $data['post'] ?? $teacher->post,
+                'dob_bs' => $data['dob_bs'] ?? $teacher->dob_bs,
+                'joining_data_bs' => $data['joining_data_bs'] ?? $teacher->joining_data_bs,
+                'joining_date' => $data['joining_date'] ?? $teacher->joining_date
             ]);
 
             //  Sync subjects
