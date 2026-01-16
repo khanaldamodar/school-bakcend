@@ -8,6 +8,7 @@ use App\Models\Admin\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Models\Admin\Teacher;
 
 
 class SubjectController extends Controller
@@ -40,7 +41,6 @@ class SubjectController extends Controller
      */
     public function show(string $domain, int $id)
     {
-
         // dd($id);
         $subject = Subject::with('activities')->findOrFail($id);
         return response()->json($subject);
@@ -59,7 +59,7 @@ class SubjectController extends Controller
             'practical_marks' => 'sometimes|numeric|min:0',
             'theory_pass_marks' => 'sometimes|numeric|min:0',
             'subject_code' => 'nullable|string',
-            'teacher_id' => 'nullable|exists:users,id',
+            'teacher_id' => 'nullable|exists:teachers,id',
 
             // ACTIVITY VALIDATION
             'activities' => 'nullable|array',
@@ -285,7 +285,7 @@ class SubjectController extends Controller
             'theory_marks' => 'required|numeric|min:0',
             'theory_pass_marks' => 'required|numeric|min:0',
             'practical_marks' => 'required|numeric|min:0',
-            'teacher_id' => 'nullable|exists:users,id',
+            'teacher_id' => 'nullable|exists:teachers,id',
 
             // NESTED VALIDATION
             'activities' => 'nullable|array',

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Services\TenantLogger;
+use App\Models\Admin\Teacher;
 class ClassController extends Controller
 {
 
@@ -39,9 +40,20 @@ class ClassController extends Controller
             ])
             ->get(); // remove orderBy('name')
 
-        // Filter activities by class_id
-        $classes->each(function ($class) {
-            $class->subjects->each(function ($subject) use ($class) {
+        // Fetch all teacher IDs from all subjects in all classes to eager load them
+        $teacherIds = $classes->flatMap(function ($class) {
+            return $class->subjects->pluck('pivot.teacher_id');
+        })->filter()->unique();
+        $teachers = Teacher::whereIn('id', $teacherIds)->get(['id', 'name'])->keyBy('id');
+
+        // Filter activities by class_id and assign teacher info to subjects
+        $classes->each(function ($class) use ($teachers) {
+            $class->subjects->each(function ($subject) use ($class, $teachers) {
+                // Assign teacher
+                $teacherId = $subject->pivot->teacher_id;
+                $subject->teacher = $teachers->get($teacherId);
+
+                // Filter activities
                 $filteredActivities = $subject->activities->filter(function ($activity) use ($class) {
                     return $activity->class_id == $class->id;
                 })->values();
@@ -147,6 +159,15 @@ class ClassController extends Controller
                         ->where('class_id', $id);
                 }
             ])->findOrFail($id);
+
+        // Map teachers to subjects efficiently
+        $teacherIds = $schoolClass->subjects->pluck('pivot.teacher_id')->filter()->unique();
+        $teachers = \App\Models\Admin\Teacher::whereIn('id', $teacherIds)->get(['id', 'name'])->keyBy('id');
+
+        $schoolClass->subjects->each(function ($subject) use ($teachers) {
+            $teacherId = $subject->pivot->teacher_id;
+            $subject->teacher = $teachers->get($teacherId);
+        });
 
         return response()->json([
             'status' => true,

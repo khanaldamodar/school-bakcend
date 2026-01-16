@@ -506,7 +506,8 @@ class AnalyticsController extends Controller
     {
         $request->validate([
             "schools" => "required|array|min:1",
-            "class_id" => "nullable", // Can be array or integer
+            "class_id" => "nullable", // Can be array or integer (for backward compatibility)
+            "class_code" => "nullable", // Can be array or string (standardized grade level: "1", "2", "3", etc.)
             "academic_year_id" => "nullable|integer",
             "gender" => "nullable", // Can be array or string
             "is_disabled" => "nullable|string",
@@ -514,7 +515,7 @@ class AnalyticsController extends Controller
             "age_group" => "nullable" // Can be array or string
         ]);
 
-        $cacheKey = 'gov_class_activity_report_v3_' . md5(json_encode($request->all()));
+        $cacheKey = 'gov_class_activity_report_v4_' . md5(json_encode($request->all()));
 
         return Cache::remember($cacheKey, 60, function () use ($request) {
             $results = [];
@@ -527,10 +528,15 @@ class AnalyticsController extends Controller
                     continue;
                 }
 
-                // Get class IDs from request (could be array or single value)
+                // Get class IDs or codes from request
                 $requestClassIds = $request->class_id;
                 if ($requestClassIds && !is_array($requestClassIds)) {
                     $requestClassIds = [$requestClassIds];
+                }
+
+                $requestClassCodes = $request->class_code;
+                if ($requestClassCodes && !is_array($requestClassCodes)) {
+                    $requestClassCodes = [$requestClassCodes];
                 }
 
                 // Determine Academic Year (Use request or default to current)
@@ -565,8 +571,15 @@ class AnalyticsController extends Controller
                     // The previous code assumed column existed. 
                 }
 
-                // Apply filters if provided
-                if (!empty($requestClassIds)) {
+                // Apply class filters
+                // Priority: class_code (standardized) > class_id (specific)
+                if (!empty($requestClassCodes)) {
+                    // Filter by standardized class_code (works across schools)
+                    // Need to join with classes table to access class_code
+                    $studentQuery->join('classes', 'students.class_id', '=', 'classes.id')
+                        ->whereIn('classes.class_code', $requestClassCodes);
+                } elseif (!empty($requestClassIds)) {
+                    // Filter by specific class_id (backward compatibility)
                     $studentQuery->whereIn('students.class_id', $requestClassIds);
                 }
 
@@ -660,17 +673,35 @@ class AnalyticsController extends Controller
 
                 // Get the DISTINCT classes from the filtered students
                 $filteredClasses = [];
-                if (!empty($requestClassIds)) {
-                    // If class filter is applied, get only those classes
+                if (!empty($requestClassCodes)) {
+                    // If class_code filter is applied, get classes by code
                     $filteredClasses = \DB::table('classes')
-                        ->select('id as class_id', 'name as class_name')
+                        ->select('id as class_id', 'name as class_name', 'class_code', 'section')
+                        ->whereIn('class_code', $requestClassCodes)
+                        ->orderBy('class_code')
+                        ->get()
+                        ->map(function ($class) {
+                            return [
+                                'class_id' => (int) $class->class_id,
+                                'class_name' => $class->class_name,
+                                'class_code' => $class->class_code,
+                                'section' => $class->section
+                            ];
+                        })
+                        ->toArray();
+                } elseif (!empty($requestClassIds)) {
+                    // If class_id filter is applied, get only those classes
+                    $filteredClasses = \DB::table('classes')
+                        ->select('id as class_id', 'name as class_name', 'class_code', 'section')
                         ->whereIn('id', $requestClassIds)
                         ->orderBy('id')
                         ->get()
                         ->map(function ($class) {
                             return [
                                 'class_id' => (int) $class->class_id,
-                                'class_name' => $class->class_name
+                                'class_name' => $class->class_name,
+                                'class_code' => $class->class_code,
+                                'section' => $class->section
                             ];
                         })
                         ->toArray();
@@ -684,14 +715,16 @@ class AnalyticsController extends Controller
 
                     if (!empty($distinctClassIds)) {
                         $filteredClasses = \DB::table('classes')
-                            ->select('id as class_id', 'name as class_name')
+                            ->select('id as class_id', 'name as class_name', 'class_code', 'section')
                             ->whereIn('id', $distinctClassIds)
                             ->orderBy('id')
                             ->get()
                             ->map(function ($class) {
                                 return [
                                     'class_id' => (int) $class->class_id,
-                                    'class_name' => $class->class_name
+                                    'class_name' => $class->class_name,
+                                    'class_code' => $class->class_code,
+                                    'section' => $class->section
                                 ];
                             })
                             ->toArray();
@@ -806,6 +839,7 @@ class AnalyticsController extends Controller
                 "filters_applied" => [
                     "schools" => $request->schools,
                     "class_ids" => $requestClassIds ?? [],
+                    "class_codes" => $requestClassCodes ?? [],
                     "gender" => $request->gender,
                     "ethnicity" => $request->ethnicity,
                     "age_groups" => $request->age_group,
