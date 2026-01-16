@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use App\Models\Admin\Teacher;
+use App\Models\Admin\AcademicYear;
+use App\Models\Admin\SubjectTeacherHistory;
 
 
 class SubjectController extends Controller
@@ -178,6 +180,8 @@ class SubjectController extends Controller
                 ],
                 ['teacher_id' => $assign['teacher_id'], 'updated_at' => now(), 'created_at' => now()]
             );
+
+            $this->logSubjectTeacherHistory($assign['class_id'], $request->subject_id, $assign['teacher_id']);
         }
 
         return response()->json([
@@ -209,6 +213,8 @@ class SubjectController extends Controller
                 'teacher_id' => $request->teacher_id,
                 'updated_at' => now()
             ]);
+
+        $this->logSubjectTeacherHistory($assignment->class_id, $assignment->subject_id, $request->teacher_id);
 
         // Fetch the updated record with related data
         $updatedAssignment = \DB::table('class_subject_teacher as cst')
@@ -334,4 +340,28 @@ class SubjectController extends Controller
     }
 
 
+    private function logSubjectTeacherHistory($classId, $subjectId, $teacherId)
+    {
+        $currentAY = AcademicYear::where('is_current', true)->first();
+
+        // Deactivate current active record
+        SubjectTeacherHistory::where('class_id', $classId)
+            ->where('subject_id', $subjectId)
+            ->where('is_active', true)
+            ->update([
+                'is_active' => false,
+                'end_date' => now()
+            ]);
+
+        if ($teacherId) {
+            SubjectTeacherHistory::create([
+                'class_id' => $classId,
+                'subject_id' => $subjectId,
+                'teacher_id' => $teacherId,
+                'academic_year_id' => $currentAY ? $currentAY->id : null,
+                'start_date' => now(),
+                'is_active' => true
+            ]);
+        }
+    }
 }

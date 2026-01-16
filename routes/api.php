@@ -264,6 +264,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
 
 
     Route::post('tenants/{domain}/teachers/me', [TeacherController::class, 'me']);
+    Route::get('tenants/{domain}/teachers/{id}/history', [TeacherController::class, 'history']);
     Route::get('tenants/{domain}/result-settings', [ResultSettingController::class, 'index']);
 
     Route::get('tenants/{domain}/classes/{id}', [ClassController::class, 'show']);

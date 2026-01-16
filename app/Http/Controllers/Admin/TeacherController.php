@@ -5,6 +5,9 @@ use App\Helpers\ImageUploadHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\SchoolClass;
 use App\Models\Admin\Teacher;
+use App\Models\Admin\ClassTeacherHistory;
+use App\Models\Admin\SubjectTeacherHistory;
+use App\Models\Admin\AcademicYear;
 use App\Models\Admin\Subject;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -389,6 +392,40 @@ class TeacherController extends Controller
         // Convert to indexed array
         $classes = array_values($classes);
 
+        // Backfill history if empty
+        $hasHistory = ClassTeacherHistory::where('teacher_id', $teacher->id)->exists() || 
+                      SubjectTeacherHistory::where('teacher_id', $teacher->id)->exists();
+
+        if (!$hasHistory) {
+            $currentAYArr = AcademicYear::where('is_current', true)->first();
+            $class = SchoolClass::where('class_teacher_id', $teacher->id)->first();
+            if ($class) {
+                ClassTeacherHistory::firstOrCreate(
+                    ['class_id' => $class->id, 'teacher_id' => $teacher->id, 'is_active' => true],
+                    ['academic_year_id' => $currentAYArr ? $currentAYArr->id : null, 'start_date' => now()]
+                );
+            }
+
+            $subjectTeachers = DB::table('class_subject_teacher')->where('teacher_id', $teacher->id)->get();
+            foreach ($subjectTeachers as $ast) {
+                SubjectTeacherHistory::firstOrCreate(
+                    ['class_id' => $ast->class_id, 'subject_id' => $ast->subject_id, 'teacher_id' => $teacher->id, 'is_active' => true],
+                    ['academic_year_id' => $currentAYArr ? $currentAYArr->id : null, 'start_date' => now()]
+                );
+            }
+        }
+
+        // Fetch History
+        $classHistory = ClassTeacherHistory::with(['schoolClass', 'academicYear'])
+            ->where('teacher_id', $teacher->id)
+            ->orderBy('start_date', 'desc')
+            ->get();
+
+        $subjectHistory = SubjectTeacherHistory::with(['schoolClass', 'subject', 'academicYear'])
+            ->where('teacher_id', $teacher->id)
+            ->orderBy('start_date', 'desc')
+            ->get();
+
         return response()->json([
             'status' => true,
             'message' => 'Teacher profile fetched successfully',
@@ -406,6 +443,61 @@ class TeacherController extends Controller
                     ];
                 }),
                 'classes' => $classes,
+                'class_history' => $classHistory,
+                'subject_history' => $subjectHistory
+            ]
+        ]);
+    }
+
+    public function history($domain, $id)
+    {
+        $teacher = Teacher::findOrFail($id);
+        $currentAYArr = AcademicYear::where('is_current', true)->first();
+
+        // Check if backfill is needed (if no entries exist in either history table for this teacher)
+        $hasHistory = ClassTeacherHistory::where('teacher_id', $id)->exists() || 
+                      SubjectTeacherHistory::where('teacher_id', $id)->exists();
+
+        if (!$hasHistory) {
+            // Backfill class teacher assignment
+            $class = SchoolClass::where('class_teacher_id', $id)->first();
+            if ($class) {
+                ClassTeacherHistory::firstOrCreate(
+                    ['class_id' => $class->id, 'teacher_id' => $id, 'is_active' => true],
+                    ['academic_year_id' => $currentAYArr ? $currentAYArr->id : null, 'start_date' => now()]
+                );
+            }
+
+            // Backfill subject teacher assignments
+            $subjectTeachers = DB::table('class_subject_teacher')->where('teacher_id', $id)->get();
+            foreach ($subjectTeachers as $ast) {
+                SubjectTeacherHistory::firstOrCreate(
+                    ['class_id' => $ast->class_id, 'subject_id' => $ast->subject_id, 'teacher_id' => $id, 'is_active' => true],
+                    ['academic_year_id' => $currentAYArr ? $currentAYArr->id : null, 'start_date' => now()]
+                );
+            }
+        }
+
+        $classHistory = ClassTeacherHistory::with(['schoolClass', 'academicYear'])
+            ->where('teacher_id', $id)
+            ->orderBy('start_date', 'desc')
+            ->get();
+
+        $subjectHistory = SubjectTeacherHistory::with(['schoolClass', 'subject', 'academicYear'])
+            ->where('teacher_id', $id)
+            ->orderBy('start_date', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Teacher assignment history fetched successfully',
+            'data' => [
+                'teacher' => [
+                    'id' => $teacher->id,
+                    'name' => $teacher->name,
+                ],
+                'class_history' => $classHistory,
+                'subject_history' => $subjectHistory
             ]
         ]);
     }

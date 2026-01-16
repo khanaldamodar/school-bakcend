@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Services\TenantLogger;
 use App\Models\Admin\Teacher;
+use App\Models\Admin\ClassTeacherHistory;
+use App\Models\Admin\AcademicYear;
 class ClassController extends Controller
 {
 
@@ -115,13 +117,14 @@ class ClassController extends Controller
                 'class_teacher_id' => $data['class_teacher_id'] ?? null,
             ]);
 
+            if (!empty($data['class_teacher_id'])) {
+                $this->logClassTeacherHistory($schoolClass->id, $data['class_teacher_id']);
+            }
+
             if (!empty($data['subject_ids'])) {
-                $subjects = Subject::whereIn('id', $data['subject_ids'])->get();
                 $syncData = [];
-                foreach ($subjects as $subject) {
-                    $syncData[$subject->id] = [
-                        'teacher_id' => $subject->teacher_id ?? $schoolClass->class_teacher_id
-                    ];
+                foreach ($data['subject_ids'] as $subjectId) {
+                    $syncData[$subjectId] = ['teacher_id' => null];
                 }
                 $schoolClass->subjects()->sync($syncData);
             }
@@ -196,19 +199,22 @@ class ClassController extends Controller
 
 
         \DB::transaction(function () use ($schoolClass, $data) {
+            $oldTeacherId = $schoolClass->class_teacher_id;
+            
             $schoolClass->update([
                 'name' => $data['name'] ?? $schoolClass->name,
                 'section' => $data['section'] ?? $schoolClass->section,
                 'class_teacher_id' => $data['class_teacher_id'] ?? $schoolClass->class_teacher_id,
             ]);
 
+            if (isset($data['class_teacher_id']) && $data['class_teacher_id'] != $oldTeacherId) {
+                $this->logClassTeacherHistory($schoolClass->id, $data['class_teacher_id']);
+            }
+
             if (isset($data['subject_ids'])) {
-                $subjects = Subject::whereIn('id', $data['subject_ids'])->get();
                 $syncData = [];
-                foreach ($subjects as $subject) {
-                    $syncData[$subject->id] = [
-                        'teacher_id' => $subject->teacher_id ?? $schoolClass->class_teacher_id
-                    ];
+                foreach ($data['subject_ids'] as $subjectId) {
+                    $syncData[$subjectId] = ['teacher_id' => null];
                 }
                 $schoolClass->subjects()->sync($syncData);
             }
@@ -240,4 +246,26 @@ class ClassController extends Controller
         ]);
     }
         
+    private function logClassTeacherHistory($classId, $teacherId)
+    {
+        $currentAY = AcademicYear::where('is_current', true)->first();
+        
+        // Deactivate current active record
+        ClassTeacherHistory::where('class_id', $classId)
+            ->where('is_active', true)
+            ->update([
+                'is_active' => false,
+                'end_date' => now()
+            ]);
+
+        if ($teacherId) {
+            ClassTeacherHistory::create([
+                'class_id' => $classId,
+                'teacher_id' => $teacherId,
+                'academic_year_id' => $currentAY ? $currentAY->id : null,
+                'start_date' => now(),
+                'is_active' => true
+            ]);
+        }
+    }
 }
