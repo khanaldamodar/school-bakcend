@@ -248,6 +248,8 @@ class SubjectController extends Controller
                 's.name as subject_name',
                 'cst.class_id',
                 'c.name as class_name',
+                'c.section as section',
+                'c.class_code as class_code',
                 'cst.teacher_id',
                 't.name as teacher_name',
                 'cst.updated_at',
