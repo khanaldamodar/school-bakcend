@@ -43,10 +43,31 @@ class SubjectController extends Controller
      */
     public function show(string $domain, int $id)
     {
-        // dd($id);
-        $subject = Subject::with('activities')->findOrFail($id);
-        return response()->json($subject);
+        $subject = Subject::with('activities.schoolClass')->findOrFail($id);
+
+        return response()->json([
+            'id' => $subject->id,
+            'name' => $subject->name,
+            'subject_code' => $subject->subject_code,
+            'theory_marks' => $subject->theory_marks,
+            'practical_marks' => $subject->practical_marks,
+            'theory_pass_marks' => $subject->theory_pass_marks,
+            'practical_pass_marks' => $subject->practical_pass_marks,
+            'activities' => $subject->activities->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'activity_name' => $activity->activity_name,
+                    'full_marks' => $activity->full_marks,
+                    'pass_marks' => $activity->pass_marks,
+                    'class' => [
+                        'name' => $activity->schoolClass->name ?? null,
+                        'section' => $activity->schoolClass->section ?? null,
+                    ],
+                ];
+            }),
+        ]);
     }
+
 
     /**
      * Update the specified resource in storage.
