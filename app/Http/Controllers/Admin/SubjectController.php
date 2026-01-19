@@ -99,7 +99,9 @@ class SubjectController extends Controller
                 'name',
                 'theory_marks',
                 'practical_marks',
-                'teacher_id'
+                'teacher_id',
+                'theory_pass_marks',
+                'subject_code'
             ]));
 
             if ($request->has('activities')) {
