@@ -177,7 +177,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
 
 
     //? To create Teachers
-    Route::apiResource('tenants/{domain}/teachers', TeacherController::class)->except('index');
+    Route::apiResource('tenants/{domain}/teachers', TeacherController::class)->except('index', 'show');
     Route::apiResource('tenants/{domain}/teacher-roles', TeacherRoleController::class)->except(['index', 'show']);
 
     //? TO create the Students
@@ -384,6 +384,7 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('tenants/{domain}/notices', [NoticeController::class, 'index']);
     Route::get('tenants/{domain}/notices/{id}', [NoticeController::class, 'show']);
     Route::get('tenants/{domain}/teachers', action: [TeacherController::class, 'index']);
+    Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
     //? Route::get('tenants/{domain}/teachers/{id}', action: [TeacherController::class, 'show']);
     Route::get('tenants/{domain}/teacher-roles', [TeacherRoleController::class, 'index']);
 
