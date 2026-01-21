@@ -1341,6 +1341,176 @@ class ResultController extends Controller
         }
     }
 
+    public function editClassResultByTeacher(Request $request)
+    {
+        $user = $request->user();
+
+        // Initialize ResultCalculationService
+        $calculationService = new ResultCalculationService();
+
+        // Validate ResultSetting exists
+        try {
+            $resultSetting = $calculationService->getResultSetting();
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'term_id' => 'required|exists:terms,id',
+            'academic_year_id' => 'nullable|exists:academic_years,id',
+            'exam_type' => 'nullable|string|max:255',
+            'exam_date' => 'nullable|date',
+            'remarks' => 'nullable|string|max:1000',
+
+            'students' => 'required|array',
+            'students.*.student_id' => 'required|exists:students,id',
+            'students.*.remarks' => 'nullable|string|max:1000',
+            'students.*.results' => 'required|array',
+
+            'students.*.results.*.subject_id' => 'required|exists:subjects,id',
+            'students.*.results.*.marks_theory' => 'required|numeric|min:0',
+            'students.*.results.*.marks_practical' => 'required|numeric|min:0',
+
+            'students.*.results.*.activities' => 'nullable|array',
+            'students.*.results.*.activities.*.activity_id' => 'required|exists:extra_curricular_activities,id',
+            'students.*.results.*.activities.*.marks' => 'required|numeric|min:0',
+        ]);
+
+        $academicYearId = $validated['academic_year_id'] ?? null;
+        if (!$academicYearId) {
+            $currentYear = $calculationService->getCurrentAcademicYear();
+            $academicYearId = $currentYear?->id;
+        }
+
+        if (!$academicYearId) {
+            return response()->json(['status' => false, 'message' => 'No active academic year found.'], 400);
+        }
+
+        // Validate term_id exists in ResultSetting
+        if (!$calculationService->validateTerm($validated['term_id'], $resultSetting)) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid term_id. Term does not exist in Result Setting.'
+            ], 400);
+        }
+
+        // Check if activities are allowed for this term
+        $canAddActivities = $calculationService->canAddActivities($validated['term_id'], $resultSetting);
+
+        $teacher = Teacher::where('user_id', $user->id)->firstOrFail();
+
+        DB::beginTransaction();
+
+        try {
+
+            foreach ($validated['students'] as $studentData) {
+
+                foreach ($studentData['results'] as $resultData) {
+
+                    // Find existing result or create new one
+                    $result = Result::where('student_id', $studentData['student_id'])
+                        ->where('class_id', $validated['class_id'])
+                        ->where('subject_id', $resultData['subject_id'])
+                        ->where('term_id', $validated['term_id'])
+                        ->where('academic_year_id', $academicYearId)
+                        ->first();
+
+                    if (!$result) {
+                        $result = new Result();
+                        $result->student_id = $studentData['student_id'];
+                        $result->class_id = $validated['class_id'];
+                        $result->subject_id = $resultData['subject_id'];
+                        $result->term_id = $validated['term_id'];
+                        $result->academic_year_id = $academicYearId;
+                        $result->teacher_id = $teacher->id;
+                    }
+
+                    // SUBJECT MARKS
+                    $subject = Subject::findOrFail($resultData['subject_id']);
+
+                    $theoryObtained = (float) $resultData['marks_theory'];
+                    $theoryMax = (float) ($subject->theory_marks ?? 0);
+
+                    // Check if practical marks should be included for this term
+                    $includePractical = $calculationService->shouldIncludePractical($validated['term_id'], $resultSetting);
+
+                    // Practical marks
+                    $practicalObtained = $includePractical ? (float) $resultData['marks_practical'] : 0;
+                    $practicalMax = $includePractical ? (float) ($subject->practical_marks ?? 0) : 0;
+
+                    // Use ResultCalculationService for calculation
+                    $calculatedResult = $calculationService->calculateResult(
+                        $result,
+                        $theoryObtained,
+                        $theoryMax,
+                        $practicalObtained,
+                        $practicalMax,
+                        $resultSetting,
+                        (float) ($subject->theory_pass_marks ?? 0),
+                        (float) ($subject->practical_pass_marks ?? 0)
+                    );
+
+                    // Update result fields
+                    $result->marks_theory = $resultData['marks_theory'];
+                    $result->marks_practical = $includePractical ? $resultData['marks_practical'] : 0;
+                    $result->exam_type = $validated['exam_type'] ?? $result->exam_type;
+                    $result->exam_date = $validated['exam_date'] ?? $result->exam_date;
+                    $result->gpa = $calculatedResult['gpa'];
+                    $result->percentage = $calculatedResult['percentage'];
+                    $result->remarks = $resultData['remarks'] ?? $studentData['remarks'] ?? $validated['remarks'] ?? $result->remarks;
+                    $result->save();
+
+
+                    // SAVE ACTIVITIES
+                    if (!empty($resultData['activities'])) {
+                        // For editing, clear existing activities first
+                        ResultActivity::where('result_id', $result->id)->delete();
+
+                        foreach ($resultData['activities'] as $activityData) {
+                            $activity = ExtraCurricularActivity::where('id', $activityData['activity_id'])
+                                ->where(function ($q) use ($validated) {
+                                    $q->where('class_id', $validated['class_id'])
+                                        ->orWhereNull('class_id');
+                                })
+                                ->firstOrFail();
+
+                            ResultActivity::create([
+                                'result_id' => $result->id,
+                                'activity_id' => $activityData['activity_id'],
+                                'marks' => $activityData['marks']
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // Update final results for all affected students
+            foreach ($validated['students'] as $studentData) {
+                $this->updateFinalResult($studentData['student_id'], $validated['class_id'], $academicYearId);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Class results updated successfully 🎉'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to update class results',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getStudentResults(Request $request, $domain, $studentId, $classId, $examType = null)
     {
         // Validate input

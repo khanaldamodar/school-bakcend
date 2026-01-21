@@ -279,6 +279,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin,teacher'])->group(funct
     Route::post('tenants/{domain}/students/results/create', [ResultController::class, 'createResultByTeacher']);
     // To get the data of result
     Route::post('tenants/{domain}/results/class', [ResultController::class, 'createClassResultByTeacher']);
+    Route::put('tenants/{domain}/results/class/edit', [ResultController::class, 'editClassResultByTeacher']);
     Route::get('tenants/{domain}/classes/{classId}/results', [ResultController::class, 'getWholeClassResults']);
 
     Route::get('tenants/{domain}/classes/{classId}/subjects', [SubjectController::class, 'getSubjectsByClass']);
