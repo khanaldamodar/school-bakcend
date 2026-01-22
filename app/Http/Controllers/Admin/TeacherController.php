@@ -24,7 +24,7 @@ class TeacherController extends Controller
 
     public function index($domain)
     {
-        $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles', 'user'])->get();
+        $teachers = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id,section', 'roles', 'user'])->get();
 
         return response()->json([
             'status' => true,
@@ -177,7 +177,7 @@ class TeacherController extends Controller
 
     public function show($domain, $id)
     {
-        $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id', 'roles', 'user'])->findOrFail($id);
+        $teacher = Teacher::with(['subjects:id,name', 'classTeacherOf:id,name,class_teacher_id,section', 'roles', 'user'])->findOrFail($id);
         // dd($teacher);
         return response()->json([
             'status' => true,
@@ -394,7 +394,7 @@ class TeacherController extends Controller
         // Pre-fetch all classes for this teacher to avoid N+1 problem
         $classes = [];
         $classIds = $teacher->classSubjects->pluck('pivot.class_id')->unique();
-        $allClasses = SchoolClass::whereIn('id', $classIds)->select('id', 'name')->get()->keyBy('id');
+        $allClasses = SchoolClass::whereIn('id', $classIds)->select('id', 'name', 'section')->get()->keyBy('id');
 
         foreach ($teacher->classSubjects as $subject) {
             $classId = $subject->pivot->class_id;
@@ -406,6 +406,7 @@ class TeacherController extends Controller
                 $classes[$classId] = [
                     'id' => $cls->id,
                     'name' => $cls->name,
+                    'section' => $cls->section,
                     'is_class_teacher' => ($teacher->classTeacherOf->id ?? null) == $cls->id,
                     'subjects' => [],
                 ];
@@ -464,6 +465,7 @@ class TeacherController extends Controller
                 'phone' => $teacher->phone,
                 'class_teacher_of' => $teacher->classTeacherOf->id ?? null,
                 'class_name' => $teacher->classTeacherOf->name ?? null,
+                'class_section' => $teacher->classTeacherOf->section ?? null,
                 'roles' => $teacher->roles->map(function ($role) {
                     return [
                         'id' => $role->id,
