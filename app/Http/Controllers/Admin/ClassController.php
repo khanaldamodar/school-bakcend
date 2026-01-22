@@ -97,7 +97,13 @@ class ClassController extends Controller
             'section' => 'nullable|string|max:50',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
-            'class_teacher_id' => 'nullable|exists:teachers,id',
+            'class_teacher_id' => [
+                'nullable',
+                'exists:teachers,id',
+                Rule::unique('classes', 'class_teacher_id'),
+            ],
+        ], [
+            'class_teacher_id.unique' => 'The selected teacher is already assigned to another class.',
         ]);
 
         if ($validator->fails()) {
@@ -192,9 +198,15 @@ class ClassController extends Controller
                 })->ignore($id),
             ],
             'section' => 'nullable|string|max:50',
-            'class_teacher_id' => 'nullable|exists:teachers,id',
+            'class_teacher_id' => [
+                'nullable',
+                'exists:teachers,id',
+                Rule::unique('classes', 'class_teacher_id')->ignore($id),
+            ],
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id'
+        ], [
+            'class_teacher_id.unique' => 'The selected teacher is already assigned to another class.',
         ]);
 
 

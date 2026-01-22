@@ -56,7 +56,15 @@ class TeacherController extends Controller
             'nationality' => 'required|string',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
-            'class_teacher_of' => 'nullable|exists:classes,id',
+            'class_teacher_of' => [
+                'nullable',
+                'exists:classes,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && SchoolClass::where('id', $value)->whereNotNull('class_teacher_id')->exists()) {
+                        $fail('The selected class already has a class teacher.');
+                    }
+                }
+            ],
             'ethnicity' => 'nullable|string',
             'post' => 'nullable|string',
             'dob_bs' => 'string|nullable',
@@ -202,7 +210,27 @@ class TeacherController extends Controller
             'nationality' => 'sometimes|string',
             'subject_ids' => 'nullable|array',
             'subject_ids.*' => 'exists:subjects,id',
-            'class_teacher_of' => 'nullable|exists:classes,id',
+            'class_teacher_of' => [
+                'nullable',
+                'exists:classes,id',
+                function ($attribute, $value, $fail) use ($id) {
+                    if ($value) {
+                        // Check if the class already has a different teacher
+                        $class = SchoolClass::find($value);
+                        if ($class && $class->class_teacher_id && $class->class_teacher_id != $id) {
+                            $fail('The selected class already has another class teacher.');
+                        }
+
+                        // Check if this teacher is already assigned to a different class
+                        $existingClass = SchoolClass::where('class_teacher_id', $id)
+                            ->where('id', '!=', $value)
+                            ->first();
+                        if ($existingClass) {
+                            $fail("This teacher is already assigned to {$existingClass->name}. Please unassign them from there first.");
+                        }
+                    }
+                }
+            ],
             'ethnicity' => 'sometimes|string',
             'post' => 'string|nullable',
             'dob_bs' => 'string|nullable',
