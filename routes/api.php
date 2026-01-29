@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AttendanceController;
 
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\EventTypeController;
+use App\Http\Controllers\Admin\IdentityCardController;
 use App\Http\Controllers\Admin\QuickLinkContrtoller;
 use App\Http\Controllers\Admin\VoiceController;
 use App\Http\Controllers\SuperAdmin\TenantController;
@@ -112,6 +113,10 @@ Route::prefix('tenants/{domain}')
 // use App\Http\Controllers\Api\SubjectController;
 
 Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
+
+    // ? Identity Cards
+    Route::get('tenants/{domain}/identity-cards/bulk', [IdentityCardController::class, 'bulkPrint']);
+    Route::get('tenants/{domain}/identity-cards/{id}', [IdentityCardController::class, 'individualPrint']);
 
     // ? Contacts
     Route::apiResource("/tenants/{domain}/contacts", ContactController::class)->except(['store']);
