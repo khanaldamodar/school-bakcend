@@ -3,12 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
+use App\Models\Admin\Student;
 use Illuminate\Http\Request;
 
 class IdentityCardController extends Controller
 {
-      public function bulkPrint(Request $request)
+    /**
+     * Bulk print identity cards for a selected class (and optional section).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function bulkPrint(Request $request)
     {
         $request->validate([
             'class_id' => 'required|exists:classes,id',
