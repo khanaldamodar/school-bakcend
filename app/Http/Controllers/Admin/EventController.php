@@ -49,7 +49,7 @@ class EventController extends Controller
         if ($validate->fails()) {
             return response()->json([
                 'status' => false,
-                'message' => "Failde to validate the data",
+                'message' => "Failed to validate the data",
                 'error' => $validate->errors()
             ], 201);
         }
