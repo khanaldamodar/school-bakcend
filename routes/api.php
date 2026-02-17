@@ -197,9 +197,7 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:admin'])->group(function () {
     //? To create te Result 
     Route::apiResource('tenants/{domain}/students/results', ResultController::class)->except('store', 'destroy');
 
-    // ? Get the Individual Student Result
-    Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'getStudentResultsById']);
-
+  
     //? To filter the results of students based in class and the studentId and classId
     Route::get('tenants/{domain}/students/results/class/{classId}', [ResultController::class, 'resultByClass']);
 
@@ -337,11 +335,15 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
     Route::put('tenants/{domain}/posts/{id}', [PostController::class, 'update']);
     Route::delete('tenants/{domain}/posts/{id}', [PostController::class, 'destroy']);
 
+
     // My Attendance
     Route::get('tenants/{domain}/my-attendance', [AttendanceController::class, 'myAttendance']);
 
     // ? Final Result Viewing (GradeSheet)
     Route::get('tenants/{domain}/final-results/class/{classId}', [FinalResultController::class, 'getResults']);
+
+    //Student Result 
+    Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'getStudentResultsById']);
 });
 
 
