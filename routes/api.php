@@ -344,6 +344,9 @@ Route::middleware(['tenant', 'auth:sanctum', 'role:student,parent,admin,teacher'
 
     //Student Result 
     Route::get('tenants/{domain}/students/{studentId}/results', [ResultController::class, 'getStudentResultsById']);
+
+    // ? ID card Settings 
+    Route::get('tenants/{domain}/id-card-settings', [IdentityCardController::class, 'IdCardSettings']);
 });
 
 

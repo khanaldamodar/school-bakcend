@@ -45,7 +45,8 @@ class SettingController extends Controller
             "number_of_exams" => "nullable",
             'district' => 'string|nullable',
             'local_body' => 'string|nullable',
-            'ward' => 'integer|nullable'
+            'ward' => 'integer|nullable',
+            'signature' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048|nullable'
         ]);
 
         if ($validator->fails()) {
@@ -56,6 +57,10 @@ class SettingController extends Controller
         if ($request->hasFile('logo')) {
             $logoPath = $request->file('logo')->store('logos', 'public');
             $data['logo'] = $logoPath;
+        }
+        if ($request->hasFile('signature')) {
+            $signaturePath = $request->file('signature')->store('signatures', 'public');
+            $data['signature'] = $signaturePath;
         }
         if ($request->hasFile('favicon')) {
             $faviconPath = $request->file('favicon')->store('favicons', 'public');
@@ -112,7 +117,8 @@ class SettingController extends Controller
             'logo_public_id' => 'sometimes|string',
             'district' => 'sometimes|string',
             'local_body' => 'sometimes|string',
-            'ward' => 'sometimes|integer'
+            'ward' => 'sometimes|integer',
+            'signature' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
         ]);
 
         // === Upload Logo to Cloudinary ===
@@ -122,6 +128,8 @@ class SettingController extends Controller
                 'school/settings/logos',
                 $settings->logo_public_id ?? null // pass old public_id if exists
             );
+
+            
 
             if ($upload) {
                 $validatedData['logo'] = $upload['url'];
@@ -140,6 +148,23 @@ class SettingController extends Controller
             if ($upload) {
                 $validatedData['favicon'] = $upload['url'];
                 $validatedData['favicon_public_id'] = $upload['public_id'];
+            }
+        }
+
+
+        // === Upload Signature to Cloudinary ===
+         if ($request->hasFile('signature')) {
+            $upload = ImageUploadHelper::uploadToCloud(
+                $request->file('signature'),
+                'school/settings/signatures',
+                $settings->signature_public_id ?? null // pass old public_id if exists
+            );
+
+            
+
+            if ($upload) {
+                $validatedData['signature'] = $upload['url'];
+                $validatedData['signature_public_id'] = $upload['public_id'];
             }
         }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Setting;
 use App\Models\Admin\Student;
 use Illuminate\Http\Request;
 
@@ -69,6 +70,18 @@ class IdentityCardController extends Controller
         ]);
     }
 
+
+
+    public function IdCardSettings()
+    {
+        $settings = Setting::get(['name', 'logo','address', 'signature']);
+        return response()->json([
+            'status' => true,
+            'message' => 'Identity card settings fetched successfully',
+            'data' => $settings,
+        ]);
+    }
+
     /**
      * Format student data for identity card response.
      *
@@ -119,4 +132,7 @@ class IdentityCardController extends Controller
             'image' => $student->image, 
         ];
     }
+
+
+
 }

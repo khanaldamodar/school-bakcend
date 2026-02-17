@@ -28,12 +28,15 @@ class Setting extends Model
         'isWeighted',
         'district',
         'local_body',
-        'ward'
+        'ward',
+        'signature',
+        'signature_public_id',
     ];
 
     protected $hidden =[
         "logo_public_id",
-        "favicon_public_id"
+        "favicon_public_id",
+        "signature_public_id"
     ];
 
     protected static function booted()
