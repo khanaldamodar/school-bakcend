@@ -854,6 +854,7 @@ class ResultController extends Controller
 
         // Fetch the student
         $student = Student::with('class:id,name')->findOrFail($studentId);
+        
 
         // academic_year_id from request or current
         $academicYearId = $request->query('academic_year_id');
@@ -873,22 +874,44 @@ class ResultController extends Controller
             ->where('student_id', $studentId)
             ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId));
 
+     
+
         // Role-based access control
         if ($user->role === 'teacher') {
             $teacher = $user->teacher;
+            if (!$teacher) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Teacher profile not found for this user.'
+                ], 403);
+            }
             $resultsQuery->where(function ($q) use ($teacher) {
                 $q->where('teacher_id', $teacher->id)
                     ->orWhere('class_id', $teacher->class_teacher_of_id);
             });
         } elseif ($user->role === 'student') {
-            if ($user->student->id != $studentId) {
+            $student = $user->student;
+            if (!$student) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Student profile not found for this user.'
+                ], 403);
+            }
+            if ($student->id != $studentId) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Not allowed to view this student\'s results'
                 ], 403);
             }
         } elseif ($user->role === 'parent') {
-            $childIds = $user->parent->students()->pluck('id');
+            $parentModel = $user->parent;
+            if (!$parentModel) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Parent profile not found for this user.'
+                ], 403);
+            }
+            $childIds = $parentModel->students()->pluck('id');
             if (!$childIds->contains($studentId)) {
                 return response()->json([
                     'status' => false,
