@@ -1632,6 +1632,7 @@ class ResultController extends Controller
             'subject:id,name,theory_marks,practical_marks,theory_pass_marks,practical_pass_marks',
             'activities.activity:id,activity_name,full_marks,pass_marks'
         ])
+            ->whereHas('student')
             ->where('class_id', $classId)
             ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->when($examType, function ($q) use ($examType) {
