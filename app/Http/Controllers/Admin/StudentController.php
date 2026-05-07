@@ -724,12 +724,12 @@ class StudentController extends Controller
                         'roll_number' => null, // Will be assigned after all imports
                         'ethnicity' => $validated['ethnicity'] ?? null,
                         'address' => $validated['address'] ?? null,
-                        'is_disabled' => $validated['is_disabled'] ?? null,
-                        'disability_options' => $validated['disability_options'] ?? null,
+                        'is_disabled' => $validated['is_disabled'] ?? 0,
+                        'disability_options' => $validated['disability_options'] ?? 'none',
                         'blood_group' => $validated['blood_group'] ?? null,
-                        'is_tribe' => $validated['is_tribe'] ?? null,
-                        'enrollment_year' => $validated['enrollment_year'] ?? null,
-                        'is_transferred' => $validated['is_transferred'] ?? null,
+                        'is_tribe' => $validated['is_tribe'] ?? 0,
+                        'enrollment_year' => $validated['enrollment_year'] ?? now()->year,
+                        'is_transferred' => $validated['is_transferred'] ?? 0,
                         'transferred_to' => $validated['transferred_to'] ?? null,
                     ]);
 
