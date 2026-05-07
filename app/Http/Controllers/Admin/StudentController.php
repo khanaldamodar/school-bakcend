@@ -588,6 +588,8 @@ class StudentController extends Controller
                     'email' => $getIndex('email'),
                     'phone' => $getIndex('phone'),
                     'class_id' => $getIndex('class_id'),
+                    'dob' => $getIndex('dob'),
+                    'gender' => $getIndex('gender'),
                     // roll_number removed - will be auto-generated
                     'ethnicity' => $getIndex('ethnicity'),
                     'address' => $getIndex('address'),
@@ -616,6 +618,8 @@ class StudentController extends Controller
                         'email' => $map['email'] !== null ? $row[$map['email']] : null,
                         'phone' => $map['phone'] !== null ? $row[$map['phone']] : null,
                         'class_id' => $map['class_id'] !== null ? $row[$map['class_id']] : null,
+                        'dob' => $map['dob'] !== null ? $row[$map['dob']] : null,
+                        'gender' => $map['gender'] !== null ? $row[$map['gender']] : null,
                         // roll_number removed - will be auto-generated
                         'ethnicity' => $map['ethnicity'] !== null ? $row[$map['ethnicity']] : null,
                         'address' => $map['address'] !== null ? $row[$map['address']] : null,
@@ -680,6 +684,8 @@ class StudentController extends Controller
                     'email' => 'nullable|email|unique:students,email',
                     'phone' => 'nullable|string|max:20',
                     'address' => 'required|string|max:255',
+                    'dob' => 'nullable|date',
+                    'gender' => 'nullable|in:male,female,other',
                     'class_id' => [
                         'required',
                         Rule::exists('classes', 'id'),
@@ -721,6 +727,8 @@ class StudentController extends Controller
                         'email' => $validated['email'] ?? null,
                         'phone' => $validated['phone'] ?? null,
                         'class_id' => $validated['class_id'],
+                        'dob' => $validated['dob'] ?? null,
+                        'gender' => $validated['gender'] ?? null,
                         'roll_number' => null, // Will be assigned after all imports
                         'ethnicity' => $validated['ethnicity'] ?? null,
                         'address' => $validated['address'] ?? null,
