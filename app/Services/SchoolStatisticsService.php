@@ -424,7 +424,7 @@ class SchoolStatisticsService
                     ->join('subjects', 'subjects.id', '=', 'class_subject_teacher.subject_id')
                     ->where('class_subject_teacher.class_id', $class->id)
                     ->where('teachers.is_deleted', false)
-                    ->select('teachers.first_name', 'teachers.last_name', 'subjects.name as subject_name')
+                    ->select('teachers.name as teacher_name', 'subjects.name as subject_name')
                     ->get();
 
                 return [
@@ -433,12 +433,13 @@ class SchoolStatisticsService
                     'class_code' => $class->class_code,
                     'section' => $class->section,
                     'subject_teachers' => $subjectTeachers->map(fn($st) => [
-                        'name' => trim($st->first_name . ' ' . $st->last_name),
+                        'name' => $st->teacher_name,
                         'subject' => $st->subject_name
                     ])
                 ];
             })->toArray();
     }
+
 
     public function calculateTrends(array $current, array $previous): array
     {
